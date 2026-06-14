@@ -1,41 +1,39 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
+.pnp
+.pnp.js
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+# next.js
+/.next/
+/out/
+next-env.d.ts
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# production
+/build
+/dist
 
-# Metro
-.metro-health-check*
+# testing
+/coverage
 
-# debug
+# env files (secrets) — only .env.example is committed
+.env
+.env*.local
+.env.development
+.env.production
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+
+# debug logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.*
 
-# macOS
-.DS_Store
-*.pem
+# local infra data volumes (if bind-mounted)
+/.data/
 
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
+# prisma
+# (migrations ARE committed; generated client is not)

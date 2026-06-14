@@ -1,0 +1,330 @@
+// FanHub data model.
+// Money invariants enforced here at the DB level:
+//   - all amounts are Int KRW (no Float/Decimal ever touches money)
+//   - no balance columns; balances are derived as SUM(LedgerEntry)
+//   - Drop.remaining has a CHECK (>= 0) constraint added in the migration SQL
+//   - the ledger is append-only (no updatedAt on LedgerEntry)
+//   - fee rate is stored in the Setting table (basis points, Int), not in env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+enum Role {
+  FAN
+  CREATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ContentType {
+  IMAGE_SET
+  VIDEO
+  BUNDLE
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  DELISTED
+}
+
+enum DropStatus {
+  SCHEDULED
+  LIVE
+  SOLD_OUT
+  ENDED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum AccountType {
+  PLATFORM
+  CREATOR
+  FAN_WALLET
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum PayoutStatus {
+  REQUESTED
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
+// ── Core users ────────────────────────────────────────────────────────────────
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  // null for users who only sign in via email magic-link / OAuth
+  passwordHash  String?
+  emailVerified DateTime?
+  role          Role       @default(FAN)
+  ageVerifiedAt DateTime?
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  creatorProfile CreatorProfile?
+  accounts       Account[]
+  sessions       Session[]
+  orders         Order[]
+  entitlements   Entitlement[]
+  auditLogs      AuditLog[]      @relation("ActorAuditLogs")
+  reports        Report[]        @relation("ReporterReports")
+}
+
+model CreatorProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handle           String    @unique
+  displayName      String
+  bio              String?
+  kycStatus        KycStatus @default(NONE)
+  payoutAccountRef String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  contents Content[]
+  payouts  Payout[]
+}
+
+// ── Catalog ────────────────────────────────────────────────────────────────────
+model Content {
+  id              String        @id @default(cuid())
+  creatorId       String
+  creator         CreatorProfile @relation(fields: [creatorId], references: [id])
+  title           String
+  type            ContentType
+  priceKrw        Int
+  status          ContentStatus @default(DRAFT)
+  previewAssetKey String? // blurred, public-readable preview file key (never the original)
+  assetKeys       Json          @default("[]") // private original asset keys
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  drop         Drop?
+  orders       Order[]
+  entitlements Entitlement[]
+  reports      Report[]
+
+  @@index([creatorId])
+  @@index([status])
+}
+
+model Drop {
+  id          String     @id @default(cuid())
+  contentId   String     @unique
+  content     Content    @relation(fields: [contentId], references: [id])
+  totalSupply Int
+  remaining   Int // CHECK (remaining >= 0) added in migration SQL
+  startsAt    DateTime
+  endsAt      DateTime
+  status      DropStatus @default(SCHEDULED)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  orders Order[]
+
+  @@index([status])
+  @@index([startsAt])
+}
+
+// ── Commerce ───────────────────────────────────────────────────────────────────
+model Order {
+  id             String      @id @default(cuid())
+  buyerId        String
+  buyer          User        @relation(fields: [buyerId], references: [id])
+  contentId      String
+  content        Content     @relation(fields: [contentId], references: [id])
+  dropId         String?
+  drop           Drop?       @relation(fields: [dropId], references: [id])
+  amountKrw      Int // authoritative price, always copied from Content server-side
+  status         OrderStatus @default(PENDING)
+  idempotencyKey String      @unique
+  providerRef    String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  ledgerEntries LedgerEntry[]
+  entitlement   Entitlement?
+
+  @@index([buyerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Append-only double-entry ledger. No balanceAfter column — balances are SUM().
+// No updatedAt: rows are immutable once written.
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  orderId     String?
+  order       Order?          @relation(fields: [orderId], references: [id])
+  accountType AccountType
+  accountId   String // e.g. "platform", or a creatorId / userId
+  direction   LedgerDirection
+  amountKrw   Int
+  // free-text reason ("purchase", "creator_share", "refund_reversal", ...)
+  memo        String?
+  createdAt   DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([accountType, accountId])
+}
+
+// A purchase grants an Entitlement. It is the ONLY basis for content access.
+model Entitlement {
+  id          String    @id @default(cuid())
+  buyerId     String
+  buyer       User      @relation(fields: [buyerId], references: [id])
+  contentId   String
+  content     Content   @relation(fields: [contentId], references: [id])
+  orderId     String?   @unique // one entitlement per paid order
+  order       Order?    @relation(fields: [orderId], references: [id])
+  watermarkId String    @unique // ULID stamped onto delivered media
+  grantedAt   DateTime  @default(now())
+  revokedAt   DateTime? // set on refund; row is never deleted
+
+  @@index([buyerId])
+  @@index([contentId])
+}
+
+model Payout {
+  id          String         @id @default(cuid())
+  creatorId   String
+  creator     CreatorProfile @relation(fields: [creatorId], references: [id])
+  amountKrw   Int
+  status      PayoutStatus   @default(REQUESTED)
+  requestedAt DateTime       @default(now())
+  paidAt      DateTime?
+
+  @@index([creatorId])
+  @@index([status])
+}
+
+// ── Webhooks / audit / settings ─────────────────────────────────────────────────
+model WebhookEvent {
+  id          String        @id @default(cuid())
+  provider    String
+  eventId     String        @unique // provider event id — idempotency key for webhooks
+  payload     Json
+  status      WebhookStatus @default(RECEIVED)
+  processedAt DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("ActorAuditLogs", fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  meta       Json     @default("{}")
+  at         DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([at])
+}
+
+// Key/value config. Values stored as strings; integer settings (e.g. fee rate in
+// basis points) are parsed as Int at the call site — no float ever stored.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// User-submitted content report, resolved by an admin.
+model Report {
+  id         String       @id @default(cuid())
+  contentId  String
+  content    Content      @relation(fields: [contentId], references: [id])
+  reporterId String?
+  reporter   User?        @relation("ReporterReports", fields: [reporterId], references: [id])
+  reason     String
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+
+  @@index([status])
+  @@index([contentId])
+}
+
+// ── Auth.js (NextAuth) adapter tables ────────────────────────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
