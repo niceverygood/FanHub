@@ -11,6 +11,7 @@ export async function signedGetUrl(
   key: string,
   ttl = SIGNED_URL_TTL_SECONDS,
 ): Promise<string> {
+  if (!s3) throw new Error("storage_not_configured");
   return getSignedUrl(s3, new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }), {
     expiresIn: ttl,
   });

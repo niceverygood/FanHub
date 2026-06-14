@@ -15,9 +15,14 @@ export async function rateLimit(
   windowSeconds: number,
 ): Promise<RateLimitResult> {
   const redisKey = `rl:${key}`;
-  const count = await redis.incr(redisKey);
-  if (count === 1) {
-    await redis.expire(redisKey, windowSeconds);
+  try {
+    const count = await redis.incr(redisKey);
+    if (count === 1) {
+      await redis.expire(redisKey, windowSeconds);
+    }
+    return { ok: count <= limit, remaining: Math.max(0, limit - count) };
+  } catch {
+    // Fail open when Redis is unavailable — never block a payment on a cache miss.
+    return { ok: true, remaining: limit };
   }
-  return { ok: count <= limit, remaining: Math.max(0, limit - count) };
 }

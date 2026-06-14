@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { entitlementFor, signedGetUrl, assetKeysOf, SIGNED_URL_TTL_SECONDS } from "@/lib/media";
+import { storageEnabled } from "@/lib/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const entitlement = await entitlementFor(session.user.id, params.id);
   if (!entitlement) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  if (!storageEnabled) {
+    return NextResponse.json({ error: "storage_not_configured" }, { status: 503 });
   }
 
   const content = await prisma.content.findUnique({ where: { id: params.id } });

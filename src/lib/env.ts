@@ -8,7 +8,10 @@ import { z } from "zod";
  */
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url(),
+
+  // Optional in serverless deploys (graceful degrade): rate-limit fails open and
+  // ticker/chart fall back to the DB when Redis is absent.
+  REDIS_URL: z.string().url().optional(),
 
   AUTH_SECRET: z.string().min(16, "AUTH_SECRET must be at least 16 chars"),
   AUTH_URL: z.string().url().default("http://localhost:3000"),
@@ -19,11 +22,13 @@ const envSchema = z.object({
   EMAIL_SERVER_USER: z.string().optional().default(""),
   EMAIL_SERVER_PASSWORD: z.string().optional().default(""),
 
-  S3_ENDPOINT: z.string().url(),
+  // Optional: when unset, the upload/signed-media features return
+  // "storage_not_configured" while the rest of the app runs.
+  S3_ENDPOINT: z.string().url().optional(),
   S3_REGION: z.string().default("us-east-1"),
-  S3_BUCKET: z.string(),
-  S3_ACCESS_KEY_ID: z.string(),
-  S3_SECRET_ACCESS_KEY: z.string(),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_FORCE_PATH_STYLE: z
     .enum(["true", "false"])
     .default("true")

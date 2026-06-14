@@ -8,11 +8,16 @@
 
 generator client {
   provider = "prisma-client-js"
+  // native = local dev; rhel-openssl-3.0.x = Vercel/AWS Lambda runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
+  // Pooled (pgBouncer) connection for serverless runtime.
   url      = env("DATABASE_URL")
+  // Direct connection for migrations (set to DATABASE_URL when not pooling).
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Enums ────────────────────────────────────────────────────────────────────

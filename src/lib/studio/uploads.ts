@@ -3,6 +3,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ulid } from "ulid";
 import { s3, S3_BUCKET } from "@/lib/s3";
 
+// note: s3 may be null when storage is not configured (serverless graceful mode).
+
 /** Allowed upload MIME types → file extension. */
 const MIME_EXT: Record<string, string> = {
   "image/png": "png",
@@ -39,6 +41,8 @@ export async function createUploadUrl(params: {
   sizeBytes: number;
   kind: "preview" | "original";
 }): Promise<UploadUrl> {
+  if (!s3) throw new UploadError("storage_not_configured");
+
   const ext = MIME_EXT[params.contentType];
   if (!ext) throw new UploadError("unsupported_mime");
 
