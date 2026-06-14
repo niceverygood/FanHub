@@ -1,21 +1,23 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatKrw } from "@/lib/money";
+import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
 /**
- * DEV ONLY mock checkout. Stands in for the PSP-hosted payment page; the two
- * buttons make /api/dev/pay post a signed webhook to simulate the outcome.
+ * Mock checkout — stands in for the PSP-hosted payment page. Available whenever
+ * the active provider is the Mock provider (dev or a mock-mode demo deploy);
+ * disabled automatically once a real PSP (e.g. CCBill) is configured.
  */
 export default async function DevCheckoutPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  if (process.env.NODE_ENV === "production") notFound();
+  if (env.PAYMENT_PROVIDER !== "mock") notFound();
 
   const orderId = typeof searchParams.orderId === "string" ? searchParams.orderId : "";
   const order = orderId

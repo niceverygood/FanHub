@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { env } from "@/lib/env";
+import { auth } from "@/auth";
 import { signMockPayload } from "@/lib/payments/mock";
 import { verifyAndProcess } from "@/lib/payments/webhook";
 import { pushTradeForPaidOrder } from "@/lib/ticker";
@@ -8,15 +10,25 @@ import type { NormalizedPaymentEvent } from "@/lib/payments/provider";
 
 export const runtime = "nodejs";
 
-// DEV ONLY: simulates the PSP posting a signed webhook. Disabled in production.
+/**
+ * Mock-provider checkout simulator. Stands in for the PSP posting a signed
+ * webhook. Enabled only while the Mock provider is active; disabled once a real
+ * PSP is configured. Safety: requires a session and that the order belongs to
+ * the caller, so no one can mark someone else's order paid.
+ */
 const schema = z.object({
   orderId: z.string().min(1),
   outcome: z.enum(["PAID", "FAILED", "REFUNDED"]),
 });
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
+  if (env.PAYMENT_PROVIDER !== "mock") {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.redirect(new URL("/login", req.url), 303);
   }
 
   const form = await req.formData();
@@ -32,6 +44,10 @@ export async function POST(req: NextRequest) {
   if (!order) {
     return NextResponse.json({ error: "order_not_found" }, { status: 404 });
   }
+  // Ownership: only the buyer can complete their own order.
+  if (order.buyerId !== session.user.id) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const event: NormalizedPaymentEvent = {
     eventId: `dev-${order.id}-${parsed.data.outcome}`,
@@ -43,12 +59,12 @@ export async function POST(req: NextRequest) {
 
   const rawBody = Buffer.from(JSON.stringify(event), "utf8");
   const signature = signMockPayload(rawBody);
-
   const result = await verifyAndProcess(rawBody, { "x-mock-signature": signature });
 
   if (result.body.outcome === "paid" && typeof result.body.orderId === "string") {
     await pushTradeForPaidOrder(result.body.orderId);
   }
 
-  return NextResponse.json(result.body, { status: result.status });
+  // Back to the content page — shows the unlocked viewer once PAID.
+  return NextResponse.redirect(new URL(`/content/${order.contentId}`, req.url), 303);
 }
