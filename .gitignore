@@ -37,3 +37,4 @@ pnpm-debug.*
 
 # prisma
 # (migrations ARE committed; generated client is not)
+.vercel
