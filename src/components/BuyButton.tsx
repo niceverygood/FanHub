@@ -66,9 +66,9 @@ export function BuyButton({
       <button
         onClick={buy}
         disabled={loading || soldOut}
-        className="w-full rounded-md bg-accent px-4 py-3 font-medium text-bg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+        className="btn-accent w-full rounded-xl px-4 py-3 font-semibold disabled:cursor-not-allowed"
       >
-        {soldOut ? "품절" : loading ? "처리 중…" : `${formatKrw(priceKrw)} 구매`}
+        {soldOut ? "품절" : loading ? "처리 중…" : `${formatKrw(priceKrw)} 구매하기`}
       </button>
       {error ? <p className="mt-2 text-xs text-accent">{error}</p> : null}
     </div>

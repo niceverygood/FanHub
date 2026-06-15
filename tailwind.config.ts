@@ -42,7 +42,21 @@ const config: Config = {
         DEFAULT: "#242424",
       },
       borderRadius: {
-        card: "14px",
+        card: "16px",
+      },
+      boxShadow: {
+        soft: "0 14px 44px -16px rgba(0,0,0,0.7)",
+        glow: "0 0 28px -6px rgba(243,112,31,0.45)",
+        "glow-strong": "0 0 0 1px rgba(243,112,31,0.45), 0 12px 36px -10px rgba(243,112,31,0.4)",
+      },
+      keyframes: {
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.4s cubic-bezier(0.16,1,0.3,1) both",
       },
     },
   },

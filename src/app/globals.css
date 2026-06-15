@@ -9,6 +9,31 @@
 
   body {
     @apply bg-bg text-text font-sans antialiased;
+    /* Subtle top vignette for depth. */
+    background-image: radial-gradient(120% 60% at 50% -10%, rgba(243, 112, 31, 0.06), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgba(243, 112, 31, 0.3);
+    color: #f4f2ef;
+  }
+
+  /* Refined dark scrollbar. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2e2e2e transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #242424;
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #363636;
   }
 
   /* Exchange texture: all numerics use tabular mono figures. */
@@ -22,7 +47,51 @@
   /* Locked content thumbnail: blurred preview + lock overlay. */
   .lock-overlay {
     @apply absolute inset-0 flex items-center justify-center;
-    background: linear-gradient(180deg, rgba(11, 11, 11, 0.1), rgba(11, 11, 11, 0.65));
+    background: linear-gradient(180deg, rgba(11, 11, 11, 0.05), rgba(11, 11, 11, 0.7));
+  }
+
+  /* Glassy translucent surface (lock CTA, chips). */
+  .glass {
+    background: rgba(19, 19, 19, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Primary accent button: gradient + soft glow. */
+  .btn-accent {
+    background-image: linear-gradient(135deg, #ff8133, #f3701f);
+    color: #0b0b0b;
+    box-shadow: 0 8px 24px -10px rgba(243, 112, 31, 0.6);
+    transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+  }
+  .btn-accent:hover {
+    filter: brightness(1.06);
+    box-shadow: 0 10px 30px -8px rgba(243, 112, 31, 0.7);
+  }
+  .btn-accent:active {
+    transform: translateY(1px);
+  }
+  .btn-accent:disabled {
+    opacity: 0.5;
+    box-shadow: none;
+    filter: none;
+  }
+
+  /* Card hover lift used across feed/grids. */
+  .lift {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 44px -20px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Story-style gradient ring around an avatar. */
+  .story-ring {
+    background: conic-gradient(from 210deg, #ff8133, #f3701f, #7a3a10, #f3701f);
+    padding: 2px;
+    border-radius: 9999px;
   }
 }
 
@@ -39,9 +108,22 @@
   .animate-marquee {
     animation: marquee 30s linear infinite;
   }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .animate-marquee {
+    .animate-marquee,
+    .animate-fade-up {
       animation: none;
+    }
+    .lift:hover {
+      transform: none;
     }
   }
 }
