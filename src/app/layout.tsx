@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Fraunces, Noto_Sans_KR, JetBrains_Mono } from "next/font/google";
+import { Fraunces, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +10,13 @@ import { MobileNav } from "@/components/layout/MobileNav";
 import { Avatar } from "@/components/ui/Avatar";
 
 const display = Fraunces({ subsets: ["latin"], variable: "--font-display", display: "swap" });
-const sans = Noto_Sans_KR({ weight: ["400", "500", "700"], variable: "--font-sans", display: "swap", preload: false });
+// Pretendard variable — premium Korean web font (self-hosted, all weights).
+const sans = localFont({
+  src: "./fonts/PretendardVariable.woff2",
+  variable: "--font-sans",
+  display: "swap",
+  weight: "100 900",
+});
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {

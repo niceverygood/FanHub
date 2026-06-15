@@ -34,9 +34,11 @@ const config: Config = {
         down: "#8B8B8B",
       },
       fontFamily: {
-        display: ["var(--font-display)", "serif"],
+        // Fraunces for Latin display; Pretendard (var(--font-sans)) handles Korean
+        // glyphs so headings never fall back to the system serif.
+        display: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        mono: ["var(--font-mono)", "var(--font-sans)", "ui-monospace", "monospace"],
       },
       borderColor: {
         DEFAULT: "#242424",
