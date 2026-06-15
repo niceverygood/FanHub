@@ -11,16 +11,16 @@ export default async function DropsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <h1 className="font-display text-3xl font-semibold tracking-tight text-text">Drops</h1>
-      <p className="mt-2 text-sm text-text-muted">한정 수량. 재고는 실시간으로 갱신됩니다.</p>
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <h1 className="font-display text-2xl font-semibold tracking-tight text-text">Drops</h1>
+      <p className="mt-1 text-sm text-text-muted">한정 수량. 재고는 실시간으로 갱신됩니다.</p>
 
       {drops.length === 0 ? (
-        <p className="mt-8 rounded-card border border-border bg-surface p-8 text-center text-sm text-text-muted">
+        <p className="mt-8 rounded-card border border-border bg-surface p-10 text-center text-sm text-text-muted">
           진행 중인 Drop이 없습니다.
         </p>
       ) : (
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {drops.map((d) => (
             <DropCard
               key={d.id}
@@ -28,6 +28,7 @@ export default async function DropsPage() {
               contentId={d.contentId}
               title={d.content.title}
               handle={d.content.creator.handle}
+              displayName={d.content.creator.displayName}
               priceKrw={d.content.priceKrw}
               remaining={d.remaining}
               totalSupply={d.totalSupply}

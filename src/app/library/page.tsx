@@ -29,10 +29,10 @@ export default async function LibraryPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-text">보관함</h1>
-        <span className="numeric text-xs text-text-muted">{entitlements.length} owned</span>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-text">보관함</h1>
+        <span className="numeric text-xs text-text-muted">{entitlements.length}개 보유</span>
       </div>
 
       {entitlements.length === 0 ? (

@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatKrw } from "@/lib/money";
 import { gradientFor } from "@/lib/placeholder";
+import { Avatar } from "@/components/ui/Avatar";
 
 interface DropCardProps {
   dropId: string;
   contentId: string;
   title: string;
   handle: string;
+  displayName: string;
   priceKrw: number;
   remaining: number;
   totalSupply: number;
@@ -86,8 +88,13 @@ export function DropCard(props: DropCardProps) {
       </div>
 
       <div className="p-4">
-        <p className="truncate text-sm text-text">{props.title}</p>
-        <p className="truncate text-xs text-text-muted">@{props.handle}</p>
+        <div className="flex items-center gap-2.5">
+          <Avatar seed={props.handle} name={props.displayName} size={32} />
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-sm text-text">{props.title}</p>
+            <p className="numeric truncate text-xs text-text-muted">@{props.handle}</p>
+          </div>
+        </div>
 
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-bg">
           <div
