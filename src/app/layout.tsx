@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Sidebar, type NavSession } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Avatar } from "@/components/ui/Avatar";
+import { Logo } from "@/components/ui/Logo";
 
 const display = Fraunces({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 // Pretendard variable — premium Korean web font (self-hosted, all weights).
@@ -44,7 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen">
         {/* Global mobile top bar */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-bg/90 px-4 py-3 backdrop-blur lg:hidden">
-          <Link href="/" className="font-display text-xl font-semibold text-text">FanHub</Link>
+          <Link href="/"><Logo className="text-xl" /></Link>
           {nav.loggedIn ? (
             <Link href="/library">
               <Avatar seed={nav.label} name={nav.label} size={32} />

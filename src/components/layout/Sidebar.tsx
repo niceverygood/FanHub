@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Zap, BarChart3, Bookmark, Store, Shield, LogIn, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { Logo } from "@/components/ui/Logo";
 
 type Role = "FAN" | "CREATOR" | "ADMIN";
 
@@ -40,8 +41,8 @@ export function Sidebar({ session }: { session: NavSession }) {
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border px-3 py-5 lg:flex">
-      <Link href="/" className="px-3 pb-7 font-display text-2xl font-semibold tracking-tight text-text">
-        FanHub
+      <Link href="/" className="px-3 pb-7">
+        <Logo className="text-2xl" />
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1">
