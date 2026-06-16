@@ -1,3 +1,5 @@
+import { EnterButton } from "./EnterButton";
+
 type SearchParams = { [key: string]: string | string[] | undefined };
 
 export default function AgeGatePage({ searchParams }: { searchParams: SearchParams }) {
@@ -12,15 +14,9 @@ export default function AgeGatePage({ searchParams }: { searchParams: SearchPara
         이상임을 확인해 주세요.
       </p>
 
-      <form action="/api/age-gate" method="post" className="mt-8 w-full">
-        <input type="hidden" name="next" value={next} />
-        <button
-          type="submit"
-          className="w-full rounded-md bg-accent px-4 py-3 font-medium text-bg transition-colors hover:bg-accent-hover"
-        >
-          만 19세 이상입니다 — 입장
-        </button>
-      </form>
+      <div className="mt-8 w-full">
+        <EnterButton next={next} />
+      </div>
 
       <a
         href="https://www.google.com"
