@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatKrw } from "@/lib/money";
-import { gradientFor } from "@/lib/placeholder";
+import { previewBg } from "@/lib/placeholder";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export default async function LibraryPage() {
             >
               <div className="relative aspect-square">
                 {/* Owned — no lock/blur. */}
-                <div className="absolute inset-0" style={{ backgroundImage: gradientFor(e.contentId) }} />
+                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: previewBg(e.contentId) }} />
                 <span className="numeric absolute left-2 top-2 rounded bg-bg/70 px-1.5 py-0.5 text-[10px] text-text-muted">
                   OWNED
                 </span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { gradientFor } from "@/lib/placeholder";
+import { previewBg } from "@/lib/placeholder";
 
 interface AssetsResponse {
   contentId: string;
@@ -14,9 +14,8 @@ type ViewState = "loading" | "ok" | "nostorage" | "error";
 
 /**
  * Owned-content viewer. Fetches short-lived signed URLs (entitlement-gated on
- * the server). Seed content has no real files, so each tile renders an abstract
- * gradient. When storage isn't configured (demo deploy), it still shows the
- * owned placeholders rather than an error.
+ * the server). When storage isn't configured (demo deploy), it shows the owned
+ * content as full (unblurred) demo photos.
  */
 export function ContentViewer({ contentId }: { contentId: string }) {
   const [data, setData] = useState<AssetsResponse | null>(null);
@@ -45,35 +44,33 @@ export function ContentViewer({ contentId }: { contentId: string }) {
   if (state === "loading") return <p className="text-sm text-text-muted">불러오는 중…</p>;
   if (state === "error") return <p className="text-sm text-text-muted">열람 권한을 확인할 수 없습니다.</p>;
 
-  // Storage not configured (demo): show owned placeholders.
+  // Storage not configured (demo): show owned content as full (sharp) photos.
   if (state === "nostorage") {
     return (
       <div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="aspect-square rounded-card border border-border"
-              style={{ backgroundImage: gradientFor(`${contentId}-${i}`) }}
+              className="aspect-[4/5] rounded-card border border-border bg-cover bg-center"
+              style={{ backgroundImage: previewBg(`${contentId}-${i}`) }}
             />
           ))}
         </div>
-        <p className="numeric mt-3 text-xs text-text-muted">
-          보유 중 · 데모 환경(미디어 스토리지 미구성 — 실제 파일은 표시되지 않습니다)
-        </p>
+        <p className="numeric mt-3 text-xs text-text-muted">보유 중 · 데모 이미지</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3">
         {data && data.urls.length > 0 ? (
           data.urls.map((url, i) => (
             <div
               key={i}
-              className="relative aspect-square overflow-hidden rounded-card border border-border"
-              style={{ backgroundImage: gradientFor(`${contentId}-${i}`) }}
+              className="relative aspect-[4/5] overflow-hidden rounded-card border border-border bg-cover bg-center"
+              style={{ backgroundImage: previewBg(`${contentId}-${i}`) }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

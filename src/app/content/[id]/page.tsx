@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { entitlementFor } from "@/lib/media";
 import { formatKrw } from "@/lib/money";
-import { gradientFor } from "@/lib/placeholder";
+import { previewBg } from "@/lib/placeholder";
 import { Avatar } from "@/components/ui/Avatar";
 import { BuyButton } from "@/components/BuyButton";
 import { ContentViewer } from "@/components/ContentViewer";
@@ -52,7 +52,7 @@ export default async function ContentPage({ params }: { params: { id: string } }
         <ContentViewer contentId={content.id} />
       ) : (
         <div className="relative aspect-[4/5] overflow-hidden rounded-card border border-border">
-          <div className="absolute inset-0 scale-110 blur-[7px]" style={{ backgroundImage: gradientFor(content.id) }} />
+          <div className="absolute inset-0 scale-110 bg-cover bg-center blur-[7px]" style={{ backgroundImage: previewBg(content.id) }} />
           <div className="lock-overlay flex-col gap-3">
             <Lock size={28} className="text-text" />
             <span className="numeric rounded-full bg-accent px-3 py-1 text-xs font-medium text-bg">

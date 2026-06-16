@@ -1,6 +1,6 @@
-import { avatarGradient, initialOf } from "@/lib/placeholder";
+import { avatarBg } from "@/lib/placeholder";
 
-/** Gradient circle avatar with an initial — stands in for creator/user photos. */
+/** Circular avatar — SFW portrait photo (demo) over a gradient fallback. */
 export function Avatar({
   seed,
   name,
@@ -14,18 +14,12 @@ export function Avatar({
 }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold text-text ${
+      role="img"
+      aria-label={name}
+      className={`inline-block shrink-0 overflow-hidden rounded-full bg-surface bg-cover bg-center ${
         ring ? "ring-2 ring-accent ring-offset-2 ring-offset-bg" : ""
       }`}
-      style={{
-        width: size,
-        height: size,
-        backgroundImage: avatarGradient(seed),
-        fontSize: Math.round(size * 0.42),
-      }}
-      aria-hidden
-    >
-      {initialOf(name)}
-    </span>
+      style={{ width: size, height: size, backgroundImage: avatarBg(seed) }}
+    />
   );
 }

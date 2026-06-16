@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { formatKrw } from "@/lib/money";
-import { gradientFor } from "@/lib/placeholder";
+import { previewBg } from "@/lib/placeholder";
 
 export interface ContentCardData {
   id: string;
@@ -25,8 +25,8 @@ export function ContentCard({ c }: { c: ContentCardData }) {
     >
       <div className="relative aspect-square overflow-hidden">
         <div
-          className="absolute inset-0 scale-105 blur-[3px] transition-transform duration-500 group-hover:scale-110"
-          style={{ backgroundImage: gradientFor(c.id) }}
+          className="absolute inset-0 scale-105 bg-cover bg-center blur-[3px] transition-transform duration-500 group-hover:scale-110"
+          style={{ backgroundImage: previewBg(c.id) }}
         />
         <div className="lock-overlay flex-col gap-2">
           <Lock size={18} className="text-text" />

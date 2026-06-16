@@ -45,3 +45,26 @@ export function initialOf(name: string): string {
   const c = name.trim().replace(/^@/, "").charAt(0);
   return (c || "?").toUpperCase();
 }
+
+/**
+ * Demo-only SFW imagery. Content thumbnails use Lorem Picsum (real, SFW photos);
+ * avatars use Pravatar (SFW portrait photos). Deterministic by seed. NOT real
+ * marketplace media — placeholders for the demo only.
+ */
+export function previewUrl(seed: string): string {
+  return `https://picsum.photos/seed/fh-${encodeURIComponent(seed)}/800/1000`;
+}
+
+/** CSS background with the photo on top and a gradient fallback behind it. */
+export function previewBg(seed: string): string {
+  return `url("${previewUrl(seed)}"), ${gradientFor(seed)}`;
+}
+
+export function avatarUrl(seed: string): string {
+  return `https://i.pravatar.cc/200?u=${encodeURIComponent(seed)}`;
+}
+
+/** CSS background: portrait photo on top, gradient fallback behind. */
+export function avatarBg(seed: string): string {
+  return `url("${avatarUrl(seed)}"), ${avatarGradient(seed)}`;
+}

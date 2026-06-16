@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatKrw } from "@/lib/money";
-import { gradientFor } from "@/lib/placeholder";
+import { previewBg } from "@/lib/placeholder";
 import { Avatar } from "@/components/ui/Avatar";
 
 interface DropCardProps {
@@ -74,7 +74,7 @@ export function DropCard(props: DropCardProps) {
       className="flex flex-col overflow-hidden rounded-card border border-border bg-surface transition-colors hover:border-accent-muted"
     >
       <div className="relative aspect-[16/9]">
-        <div className="absolute inset-0 blur-[2px]" style={{ backgroundImage: gradientFor(props.contentId) }} />
+        <div className="absolute inset-0 bg-cover bg-center blur-[2px]" style={{ backgroundImage: previewBg(props.contentId) }} />
         <div className="lock-overlay flex-col gap-1">
           <span className="numeric text-xs uppercase tracking-wider text-text-muted">
             {scheduled ? "시작까지" : soldOut ? "종료" : "남은 시간"}

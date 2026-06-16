@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { avatarGradient, initialOf } from "@/lib/placeholder";
+import { avatarBg } from "@/lib/placeholder";
 
 /** Instagram-style horizontal "stories" row of featured creators. */
 export async function StoriesRow() {
@@ -23,11 +23,9 @@ export async function StoriesRow() {
           <span className="story-ring transition-transform duration-200 hover:scale-105">
             <span className="block rounded-full bg-bg p-[3px]">
               <span
-                className="flex h-14 w-14 items-center justify-center rounded-full font-display text-lg font-semibold text-text"
-                style={{ backgroundImage: avatarGradient(c.handle) }}
-              >
-                {initialOf(c.displayName)}
-              </span>
+                className="block h-14 w-14 rounded-full bg-cover bg-center"
+                style={{ backgroundImage: avatarBg(c.handle) }}
+              />
             </span>
           </span>
           <span className="numeric w-full truncate text-center text-[11px] text-text-muted">

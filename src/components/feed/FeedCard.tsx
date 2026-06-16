@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Lock, MessageCircle, Banknote, Bookmark, MoreHorizontal, Check, BadgeCheck } from "lucide-react";
 import { formatKrw } from "@/lib/money";
-import { gradientFor } from "@/lib/placeholder";
+import { previewBg } from "@/lib/placeholder";
 import { Avatar } from "@/components/ui/Avatar";
 import { LikeButton } from "@/components/feed/LikeButton";
 import { BuyButton } from "@/components/BuyButton";
@@ -50,8 +50,8 @@ export function FeedCard({ c }: { c: FeedCardData }) {
         className="lift group relative block aspect-[4/5] overflow-hidden rounded-card border border-border hover:border-accent-muted"
       >
         <div
-          className={`absolute inset-0 transition-transform duration-700 group-hover:scale-105 ${c.owned ? "" : "scale-110 blur-[7px]"}`}
-          style={{ backgroundImage: gradientFor(c.id) }}
+          className={`absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105 ${c.owned ? "" : "scale-110 blur-[7px]"}`}
+          style={{ backgroundImage: previewBg(c.id) }}
         />
         {/* depth scrim */}
         <div className="absolute inset-0 bg-gradient-to-t from-bg/50 via-transparent to-bg/10" />
