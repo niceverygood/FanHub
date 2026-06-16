@@ -93,6 +93,14 @@
     padding: 2px;
     border-radius: 9999px;
   }
+
+  /* Accent gradient text for headline moments. */
+  .text-gradient {
+    background-image: linear-gradient(92deg, #f4f2ef 30%, #ff8133);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
 @layer utilities {
@@ -117,9 +125,26 @@
     scrollbar-width: none;
   }
 
+  /* Slow ambient glow pulse for hero accents. */
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.08);
+    }
+  }
+  .glow-pulse {
+    animation: glow-pulse 5s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-marquee,
-    .animate-fade-up {
+    .animate-fade-up,
+    .glow-pulse {
       animation: none;
     }
     .lift:hover {

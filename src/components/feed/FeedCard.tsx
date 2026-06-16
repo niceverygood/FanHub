@@ -47,10 +47,10 @@ export function FeedCard({ c }: { c: FeedCardData }) {
       {/* Media */}
       <Link
         href={`/content/${c.id}`}
-        className="lift group relative block aspect-[4/5] overflow-hidden rounded-card border border-border hover:border-accent-muted"
+        className="lift group relative block aspect-[4/5] overflow-hidden rounded-card border border-border transition-shadow hover:border-accent hover:shadow-glow"
       >
         <div
-          className={`absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105 ${c.owned ? "" : "scale-110 blur-[7px]"}`}
+          className={`absolute inset-0 bg-cover bg-center transition-transform duration-700 ${c.owned ? "group-hover:scale-110" : "scale-110 blur-[7px] group-hover:scale-[1.22]"}`}
           style={{ backgroundImage: previewBg(c.id) }}
         />
         {/* depth scrim */}
@@ -62,7 +62,7 @@ export function FeedCard({ c }: { c: FeedCardData }) {
           </span>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-text shadow-soft">
+            <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-text shadow-soft transition-all duration-300 group-hover:scale-105 group-hover:shadow-glow">
               <Lock size={16} className="text-accent" />
               <span className="numeric font-medium">
                 {soldOut ? "SOLD OUT" : `${formatKrw(c.priceKrw)} 잠금 해제`}
