@@ -1,8 +1,6 @@
-import { redis } from "@/lib/redis";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
-const CACHE_KEY = "chart:7d";
-const CACHE_TTL_SECONDS = 300; // 5 minutes
 const DAY_MS = 86_400_000;
 
 export interface ChartRow {
@@ -17,21 +15,16 @@ export interface ChartRow {
   spark: number[];
 }
 
-/** 7-day creator volume ranking, cached in Redis for 5 minutes. */
+/**
+ * 7-day creator volume ranking, cached in Next's in-region data cache for 5
+ * minutes (revalidate). Avoids cross-region Redis on the hot path.
+ */
+const getCachedChart = unstable_cache(async () => computeChart(), ["chart-7d"], {
+  revalidate: 300,
+});
+
 export async function get7dChart(): Promise<ChartRow[]> {
-  try {
-    const cached = await redis.get(CACHE_KEY);
-    if (cached) return JSON.parse(cached) as ChartRow[];
-  } catch {
-    // recompute on cache failure
-  }
-  const rows = await computeChart();
-  try {
-    await redis.set(CACHE_KEY, JSON.stringify(rows), "EX", CACHE_TTL_SECONDS);
-  } catch {
-    // non-fatal
-  }
-  return rows;
+  return getCachedChart();
 }
 
 interface Agg {
