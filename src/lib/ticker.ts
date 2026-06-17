@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export interface Trade {
@@ -18,21 +19,30 @@ export async function pushTradeForPaidOrder(_orderId: string): Promise<void> {
   // intentionally empty
 }
 
-/** Recent trades, read straight from the DB (fast, colocated with functions). */
+/** Recent PAID trades from the in-region DB, cached briefly (Next data cache). */
+const fetchRecentTrades = unstable_cache(
+  async (): Promise<Trade[]> => {
+    const orders = await prisma.order.findMany({
+      where: { status: "PAID" },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      include: { content: { include: { creator: true } } },
+    });
+    return orders
+      .filter((o) => o.content)
+      .map((o) => ({
+        id: o.id,
+        handle: o.content!.creator.handle,
+        title: o.content!.title,
+        amountKrw: o.amountKrw,
+        at: o.updatedAt.toISOString(),
+      }));
+  },
+  ["recent-trades"],
+  { revalidate: 20 },
+);
+
 export async function getRecentTrades(limit = 20): Promise<Trade[]> {
-  const orders = await prisma.order.findMany({
-    where: { status: "PAID" },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
-    include: { content: { include: { creator: true } } },
-  });
-  return orders
-    .filter((o) => o.content)
-    .map((o) => ({
-      id: o.id,
-      handle: o.content!.creator.handle,
-      title: o.content!.title,
-      amountKrw: o.amountKrw,
-      at: o.updatedAt.toISOString(),
-    }));
+  const all = await fetchRecentTrades();
+  return all.slice(0, limit);
 }

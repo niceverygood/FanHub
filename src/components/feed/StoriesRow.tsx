@@ -1,15 +1,10 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { getTopCreators } from "@/lib/feed";
 import { avatarBg } from "@/lib/placeholder";
 
 /** Instagram-style horizontal "stories" row of featured creators. */
 export async function StoriesRow() {
-  const creators = await prisma.creatorProfile.findMany({
-    where: { contents: { some: { status: "PUBLISHED" } } },
-    orderBy: { contents: { _count: "desc" } },
-    take: 14,
-    select: { handle: true, displayName: true },
-  });
+  const creators = await getTopCreators();
   if (creators.length === 0) return null;
 
   return (

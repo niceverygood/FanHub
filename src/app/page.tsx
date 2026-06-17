@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { getFeedContents } from "@/lib/feed";
 import { getRecentTrades } from "@/lib/ticker";
 import { Ticker } from "@/components/Ticker";
 import { FeedCard } from "@/components/feed/FeedCard";
@@ -13,12 +14,7 @@ export default async function HomePage() {
   const session = await auth();
 
   const [contents, trades, ents] = await Promise.all([
-    prisma.content.findMany({
-      where: { status: "PUBLISHED" },
-      include: { creator: true, drop: true },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    }),
+    getFeedContents(),
     getRecentTrades(20),
     session?.user
       ? prisma.entitlement.findMany({
@@ -88,12 +84,10 @@ export default async function HomePage() {
                     id: c.id,
                     title: c.title,
                     priceKrw: c.priceKrw,
-                    handle: c.creator.handle,
-                    displayName: c.creator.displayName,
+                    handle: c.handle,
+                    displayName: c.displayName,
                     owned: owned.has(c.id),
-                    drop: c.drop
-                      ? { id: c.drop.id, remaining: c.drop.remaining, total: c.drop.totalSupply, status: c.drop.status }
-                      : null,
+                    drop: c.drop,
                   }}
                 />
               ))}

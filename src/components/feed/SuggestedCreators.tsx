@@ -1,15 +1,10 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { getTopCreators } from "@/lib/feed";
 import { Avatar } from "@/components/ui/Avatar";
 
 /** Right-rail "추천 크리에이터" — top creators by published-content count. */
 export async function SuggestedCreators() {
-  const creators = await prisma.creatorProfile.findMany({
-    where: { contents: { some: { status: "PUBLISHED" } } },
-    orderBy: { contents: { _count: "desc" } },
-    take: 6,
-    select: { handle: true, displayName: true, bio: true },
-  });
+  const creators = (await getTopCreators()).slice(0, 6);
 
   if (creators.length === 0) return null;
 
