@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+// Live stock must always be fresh (the marketplace shows remaining count
+// ticking down), so this stays uncached. The ticker, which is non-personalized
+// and tolerant of ~10s staleness, is the one we edge-cache.
+export const dynamic = "force-dynamic";
 
 /**
  * Live drop stock, for client-side polling. Optional ?ids=a,b filters to
@@ -24,10 +28,5 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Short edge cache: stock display can be a few seconds stale (the purchase
-  // path re-checks stock with a conditional UPDATE, so this never oversells).
-  return NextResponse.json(
-    { drops },
-    { headers: { "Cache-Control": "public, s-maxage=5, stale-while-revalidate=15" } },
-  );
+  return NextResponse.json({ drops });
 }
