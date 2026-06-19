@@ -11,18 +11,20 @@ import { SuggestedCreators } from "@/components/feed/SuggestedCreators";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const session = await auth();
+  // Kick off the public (cached) reads immediately so they overlap with the
+  // auth() session lookup (a DB round-trip) instead of waiting behind it.
+  const contentsP = getFeedContents();
+  const tradesP = getRecentTrades(20);
 
-  const [contents, trades, ents] = await Promise.all([
-    getFeedContents(),
-    getRecentTrades(20),
-    session?.user
-      ? prisma.entitlement.findMany({
-          where: { buyerId: session.user.id, revokedAt: null },
-          select: { contentId: true },
-        })
-      : Promise.resolve([] as { contentId: string }[]),
-  ]);
+  const session = await auth();
+  const entsP = session?.user
+    ? prisma.entitlement.findMany({
+        where: { buyerId: session.user.id, revokedAt: null },
+        select: { contentId: true },
+      })
+    : Promise.resolve([] as { contentId: string }[]);
+
+  const [contents, trades, ents] = await Promise.all([contentsP, tradesP, entsP]);
 
   const owned = new Set(ents.map((e) => e.contentId));
 

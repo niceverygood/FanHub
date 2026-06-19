@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 /**
  * Live drop stock, for client-side polling. Optional ?ids=a,b filters to
@@ -25,5 +24,10 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ drops });
+  // Short edge cache: stock display can be a few seconds stale (the purchase
+  // path re-checks stock with a conditional UPDATE, so this never oversells).
+  return NextResponse.json(
+    { drops },
+    { headers: { "Cache-Control": "public, s-maxage=5, stale-while-revalidate=15" } },
+  );
 }

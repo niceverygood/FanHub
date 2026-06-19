@@ -11,21 +11,23 @@ interface Trade {
   at: string;
 }
 
-/** Live trade ticker. SSR-seeded, then polls /api/ticker every 5s. */
+/** Live trade ticker. SSR-seeded, then polls /api/ticker every 10s (edge-cached). */
 export function Ticker({ initial }: { initial: Trade[] }) {
   const [trades, setTrades] = useState<Trade[]>(initial);
 
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
-        const res = await fetch("/api/ticker", { cache: "no-store" });
+        // Plain GET (no `no-store`) so the request can be served by the Vercel
+        // edge cache instead of always hitting the function.
+        const res = await fetch("/api/ticker");
         if (!res.ok) return;
         const json = (await res.json()) as { trades: Trade[] };
         setTrades(json.trades);
       } catch {
         // keep last known
       }
-    }, 5000);
+    }, 10000);
     return () => clearInterval(timer);
   }, []);
 
