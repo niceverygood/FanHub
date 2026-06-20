@@ -4,6 +4,7 @@ import { isSameOrigin } from "@/lib/http";
 import { requireAdmin } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { disbursePayout } from "@/lib/payouts";
 
 export const runtime = "nodejs";
 
@@ -26,13 +27,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!body.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
 
     const next = NEXT_STATUS[body.data.decision];
-    const updated = await prisma.payout.updateMany({
-      where: { id: params.id, status: { in: [...FROM_STATUS[body.data.decision]] } },
-      data: { status: next, paidAt: next === "PAID" ? new Date() : undefined },
-    });
-    if (updated.count === 0) {
-      return NextResponse.json({ error: "invalid_transition" }, { status: 409 });
+
+    if (body.data.decision === "PAY") {
+      // Transition + ledger DEBIT atomically (double-payment safe). See disbursePayout.
+      const ok = await disbursePayout(params.id);
+      if (!ok) return NextResponse.json({ error: "invalid_transition" }, { status: 409 });
+    } else {
+      const updated = await prisma.payout.updateMany({
+        where: { id: params.id, status: { in: [...FROM_STATUS[body.data.decision]] } },
+        data: { status: next },
+      });
+      if (updated.count === 0) {
+        return NextResponse.json({ error: "invalid_transition" }, { status: 409 });
+      }
     }
+
     await prisma.auditLog.create({
       data: { actorId: admin.id, action: `payout_${next.toLowerCase()}`, targetType: "Payout", targetId: params.id, meta: {} },
     });

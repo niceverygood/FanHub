@@ -72,6 +72,27 @@ export async function recordRefundReversal(tx: Tx, orderId: string): Promise<voi
 }
 
 /**
+ * Payout disbursement (append-only): when a creator's payout is marked PAID,
+ * DEBIT the CREATOR account so the ledger reflects the cash leaving the
+ * platform. Without this the creator's derived balance would never go down
+ * after being paid. Must run inside the same tx as the PAID status transition.
+ */
+export async function recordPayoutDisbursement(
+  tx: Tx,
+  params: { creatorAccountId: string; amountKrw: number; payoutId: string },
+): Promise<void> {
+  await tx.ledgerEntry.create({
+    data: {
+      accountType: AccountType.CREATOR,
+      accountId: params.creatorAccountId,
+      direction: LedgerDirection.DEBIT,
+      amountKrw: params.amountKrw,
+      memo: `payout_disbursed:${params.payoutId}`,
+    },
+  });
+}
+
+/**
  * Account balance derived purely from the ledger: SUM(CREDIT) - SUM(DEBIT).
  * No balance column is ever stored or updated.
  */

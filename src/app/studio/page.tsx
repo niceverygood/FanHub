@@ -73,7 +73,7 @@ export default async function StudioPage() {
       {/* Revenue (from ledger SUM) */}
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="누적 수익" value={formatKrw(revenue.earnedKrw)} />
-        <Stat label="정산 신청/완료" value={formatKrw(revenue.reservedKrw)} />
+        <Stat label="정산 완료" value={formatKrw(revenue.paidOutKrw)} />
         <Stat label="가용 잔액" value={formatKrw(revenue.availableKrw)} />
         <Stat label="판매 건수" value={String(revenue.salesCount)} />
       </div>

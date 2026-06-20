@@ -2,19 +2,21 @@ import { AccountType, LedgerDirection, PayoutStatus, Prisma } from "@prisma/clie
 import { prisma } from "@/lib/prisma";
 
 export interface CreatorRevenue {
-  earnedKrw: number; // creator ledger balance = SUM(CREDIT) - SUM(DEBIT)
-  reservedKrw: number; // already requested/approved/paid payouts
-  availableKrw: number; // earned - reserved
+  earnedKrw: number; // lifetime net creator share (credits − refunds), excludes payouts
+  paidOutKrw: number; // total disbursed = SUM(PAID payouts), also a CREATOR ledger DEBIT
+  reservedKrw: number; // pending payouts (REQUESTED + APPROVED), not yet disbursed
+  availableKrw: number; // current ledger balance − pending payouts
   salesCount: number;
 }
 
-/** Statuses that "reserve" a creator's balance (everything except REJECTED). */
-const RESERVED_PAYOUT_STATUSES = [
-  PayoutStatus.REQUESTED,
-  PayoutStatus.APPROVED,
-  PayoutStatus.PAID,
-];
+/** Payouts that hold a claim on the balance but haven't hit the ledger yet. */
+const PENDING_PAYOUT_STATUSES: PayoutStatus[] = [PayoutStatus.REQUESTED, PayoutStatus.APPROVED];
 
+/**
+ * Creator ledger balance: SUM(CREDIT) − SUM(DEBIT). DEBITs include refund
+ * reversals and payout disbursements, so once a payout is PAID this already
+ * reflects the cash-out.
+ */
 async function ledgerBalance(
   client: Prisma.TransactionClient,
   creatorId: string,
@@ -33,39 +35,55 @@ async function ledgerBalance(
   return credit - debit;
 }
 
-async function reservedKrw(
+/** Sum of payout amounts split into pending (REQUESTED/APPROVED) and paid. */
+async function payoutSums(
   client: Prisma.TransactionClient,
   creatorId: string,
-): Promise<number> {
-  const agg = await client.payout.aggregate({
-    where: { creatorId, status: { in: RESERVED_PAYOUT_STATUSES } },
+): Promise<{ pendingKrw: number; paidKrw: number }> {
+  const grouped = await client.payout.groupBy({
+    by: ["status"],
+    where: { creatorId },
     _sum: { amountKrw: true },
   });
-  return agg._sum.amountKrw ?? 0;
+  let pendingKrw = 0;
+  let paidKrw = 0;
+  for (const g of grouped) {
+    const amt = g._sum.amountKrw ?? 0;
+    if (PENDING_PAYOUT_STATUSES.includes(g.status)) pendingKrw += amt;
+    else if (g.status === PayoutStatus.PAID) paidKrw += amt;
+  }
+  return { pendingKrw, paidKrw };
 }
 
-/** Available balance computed purely from the ledger + payout reservations. */
+/**
+ * Withdrawable balance = current ledger balance − pending payouts. PAID payouts
+ * are already subtracted from the ledger balance (via their DEBIT), so they are
+ * intentionally NOT counted here again.
+ */
 export async function availableBalance(
   client: Prisma.TransactionClient,
   creatorId: string,
 ): Promise<number> {
-  const [earned, reserved] = await Promise.all([
+  const [balance, { pendingKrw }] = await Promise.all([
     ledgerBalance(client, creatorId),
-    reservedKrw(client, creatorId),
+    payoutSums(client, creatorId),
   ]);
-  return earned - reserved;
+  return balance - pendingKrw;
 }
 
 export async function creatorRevenue(creatorId: string): Promise<CreatorRevenue> {
-  const [earnedKrw, reserved, salesCount] = await Promise.all([
+  const [balance, sums, salesCount] = await Promise.all([
     ledgerBalance(prisma, creatorId),
-    reservedKrw(prisma, creatorId),
+    payoutSums(prisma, creatorId),
     prisma.order.count({ where: { status: "PAID", content: { creatorId } } }),
   ]);
+  // Lifetime earned = current balance + what's already been paid out (added back
+  // since payouts are DEBITed from the balance). This stays stable across payouts.
   return {
-    earnedKrw,
-    reservedKrw: reserved,
-    availableKrw: earnedKrw - reserved,
+    earnedKrw: balance + sums.paidKrw,
+    paidOutKrw: sums.paidKrw,
+    reservedKrw: sums.pendingKrw,
+    availableKrw: balance - sums.pendingKrw,
     salesCount,
   };
 }

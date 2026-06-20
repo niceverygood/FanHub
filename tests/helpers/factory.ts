@@ -73,25 +73,44 @@ export async function createCreatorContent(opts: {
 
 /** Deletes only test-prefixed rows, FK-safe order. Leaves seed data intact. */
 export async function cleanupTestData(): Promise<void> {
-  const testUsers = await prisma.user.findMany({
-    where: { email: { startsWith: PREFIX } },
-    select: { id: true },
-  });
+  const [testUsers, testCreators, testContents] = await Promise.all([
+    prisma.user.findMany({ where: { email: { startsWith: PREFIX } }, select: { id: true } }),
+    prisma.creatorProfile.findMany({ where: { handle: { startsWith: PREFIX } }, select: { id: true } }),
+    prisma.content.findMany({ where: { creator: { handle: { startsWith: PREFIX } } }, select: { id: true } }),
+  ]);
   const userIds = testUsers.map((u) => u.id);
+  const creatorIds = testCreators.map((c) => c.id);
+  const contentIds = testContents.map((c) => c.id);
 
+  // Orders can be reached via a test buyer OR test content; cover both.
   const orders = await prisma.order.findMany({
-    where: { buyerId: { in: userIds } },
+    where: { OR: [{ buyerId: { in: userIds } }, { contentId: { in: contentIds } }] },
     select: { id: true },
   });
   const orderIds = orders.map((o) => o.id);
 
+  const payouts = await prisma.payout.findMany({
+    where: { creatorId: { in: creatorIds } },
+    select: { id: true },
+  });
+  const payoutIds = payouts.map((p) => p.id);
+
   await prisma.auditLog.deleteMany({ where: { targetType: "Order", targetId: { in: orderIds } } });
+  await prisma.auditLog.deleteMany({ where: { targetType: "Payout", targetId: { in: payoutIds } } });
+  // Order-linked ledger entries (purchase, refund) + creator-account entries
+  // (payout disbursements have a null orderId, so delete those by accountId).
   await prisma.ledgerEntry.deleteMany({ where: { orderId: { in: orderIds } } });
-  await prisma.entitlement.deleteMany({ where: { buyerId: { in: userIds } } });
-  await prisma.order.deleteMany({ where: { buyerId: { in: userIds } } });
+  await prisma.ledgerEntry.deleteMany({ where: { accountType: "CREATOR", accountId: { in: creatorIds } } });
+  // Entitlements reference both buyer and content — delete by either to avoid
+  // FK violations when content is removed below.
+  await prisma.entitlement.deleteMany({
+    where: { OR: [{ buyerId: { in: userIds } }, { contentId: { in: contentIds } }] },
+  });
+  await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+  await prisma.payout.deleteMany({ where: { creatorId: { in: creatorIds } } });
   await prisma.webhookEvent.deleteMany({ where: { eventId: { startsWith: PREFIX } } });
-  await prisma.drop.deleteMany({ where: { content: { creator: { handle: { startsWith: PREFIX } } } } });
-  await prisma.content.deleteMany({ where: { creator: { handle: { startsWith: PREFIX } } } });
-  await prisma.creatorProfile.deleteMany({ where: { handle: { startsWith: PREFIX } } });
-  await prisma.user.deleteMany({ where: { email: { startsWith: PREFIX } } });
+  await prisma.drop.deleteMany({ where: { contentId: { in: contentIds } } });
+  await prisma.content.deleteMany({ where: { id: { in: contentIds } } });
+  await prisma.creatorProfile.deleteMany({ where: { id: { in: creatorIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 }
