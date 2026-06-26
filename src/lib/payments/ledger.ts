@@ -1,50 +1,83 @@
 import { Prisma, AccountType, LedgerDirection } from "@prisma/client";
-import { splitAmount } from "@/lib/money";
 
 export const PLATFORM_ACCOUNT_ID = "platform";
 
 type Tx = Prisma.TransactionClient;
 
+/** Exact integer share of an amount at a basis-points rate (floors toward platform). */
+const shareKrw = (amountKrw: number, bps: number) => Math.floor((amountKrw * bps) / 10_000);
+
 /**
- * Double-entry purchase ledger (append-only). Per the spec:
- *  - the full gross amount is CREDITed to PLATFORM (platform receives it)
+ * Double-entry purchase ledger (append-only):
+ *  - the full gross amount is CREDITed to PLATFORM
  *  - the creator share is DEBITed from PLATFORM and CREDITed to the CREATOR
- * Net result: PLATFORM keeps the platform share, CREATOR earns their share.
- * Fee rate comes from the DB Setting table (basis points), never env.
+ *  - if the creator was referred by a host, the host commission is likewise
+ *    DEBITed from PLATFORM and CREDITed to the HOST
+ * Net result: PLATFORM keeps the remainder (and absorbs any rounding). All rates
+ * come from the DB Setting table (basis points), never env.
  */
 export async function recordPurchaseLedger(
   tx: Tx,
-  params: { orderId: string; amountKrw: number; creatorAccountId: string; creatorShareBps: number },
+  params: {
+    orderId: string;
+    amountKrw: number;
+    creatorAccountId: string;
+    creatorShareBps: number;
+    hostAccountId?: string | null;
+    hostShareBps?: number;
+  },
 ): Promise<void> {
-  const { creatorKrw } = splitAmount(params.amountKrw, params.creatorShareBps);
-  await tx.ledgerEntry.createMany({
-    data: [
-      {
-        orderId: params.orderId,
-        accountType: AccountType.PLATFORM,
-        accountId: PLATFORM_ACCOUNT_ID,
-        direction: LedgerDirection.CREDIT,
-        amountKrw: params.amountKrw,
-        memo: "purchase_gross",
-      },
+  const creatorKrw = shareKrw(params.amountKrw, params.creatorShareBps);
+  const hasHost = !!params.hostAccountId && (params.hostShareBps ?? 0) > 0;
+  const hostKrw = hasHost ? shareKrw(params.amountKrw, params.hostShareBps ?? 0) : 0;
+
+  const data: Prisma.LedgerEntryCreateManyInput[] = [
+    {
+      orderId: params.orderId,
+      accountType: AccountType.PLATFORM,
+      accountId: PLATFORM_ACCOUNT_ID,
+      direction: LedgerDirection.CREDIT,
+      amountKrw: params.amountKrw,
+      memo: "purchase_gross",
+    },
+    {
+      orderId: params.orderId,
+      accountType: AccountType.PLATFORM,
+      accountId: PLATFORM_ACCOUNT_ID,
+      direction: LedgerDirection.DEBIT,
+      amountKrw: creatorKrw,
+      memo: "creator_share_payable",
+    },
+    {
+      orderId: params.orderId,
+      accountType: AccountType.CREATOR,
+      accountId: params.creatorAccountId,
+      direction: LedgerDirection.CREDIT,
+      amountKrw: creatorKrw,
+      memo: "creator_share",
+    },
+  ];
+  if (hasHost) {
+    data.push(
       {
         orderId: params.orderId,
         accountType: AccountType.PLATFORM,
         accountId: PLATFORM_ACCOUNT_ID,
         direction: LedgerDirection.DEBIT,
-        amountKrw: creatorKrw,
-        memo: "creator_share_payable",
+        amountKrw: hostKrw,
+        memo: "host_commission_payable",
       },
       {
         orderId: params.orderId,
-        accountType: AccountType.CREATOR,
-        accountId: params.creatorAccountId,
+        accountType: AccountType.HOST,
+        accountId: params.hostAccountId as string,
         direction: LedgerDirection.CREDIT,
-        amountKrw: creatorKrw,
-        memo: "creator_share",
+        amountKrw: hostKrw,
+        memo: "host_commission",
       },
-    ],
-  });
+    );
+  }
+  await tx.ledgerEntry.createMany({ data });
 }
 
 /**
@@ -72,19 +105,18 @@ export async function recordRefundReversal(tx: Tx, orderId: string): Promise<voi
 }
 
 /**
- * Payout disbursement (append-only): when a creator's payout is marked PAID,
- * DEBIT the CREATOR account so the ledger reflects the cash leaving the
- * platform. Without this the creator's derived balance would never go down
- * after being paid. Must run inside the same tx as the PAID status transition.
+ * Payout disbursement (append-only): when a payout is marked PAID, DEBIT the
+ * payee's ledger account (CREATOR or HOST) so the derived balance reflects the
+ * cash leaving the platform. Must run inside the same tx as the PAID transition.
  */
 export async function recordPayoutDisbursement(
   tx: Tx,
-  params: { creatorAccountId: string; amountKrw: number; payoutId: string },
+  params: { accountType: AccountType; accountId: string; amountKrw: number; payoutId: string },
 ): Promise<void> {
   await tx.ledgerEntry.create({
     data: {
-      accountType: AccountType.CREATOR,
-      accountId: params.creatorAccountId,
+      accountType: params.accountType,
+      accountId: params.accountId,
       direction: LedgerDirection.DEBIT,
       amountKrw: params.amountKrw,
       memo: `payout_disbursed:${params.payoutId}`,

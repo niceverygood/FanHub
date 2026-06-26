@@ -29,12 +29,16 @@ const CONTENT_TYPES: ContentType[] = [
 ];
 
 async function main() {
-  // 1) Platform setting: creator share = 80% (basis points, integer).
-  await prisma.setting.upsert({
-    where: { key: "creator_share_bps" },
-    update: { value: "8000" },
-    create: { key: "creator_share_bps", value: "8000" },
-  });
+  // 1) Revenue-share settings (basis points, integer).
+  //    Non-referred creator 70% / platform 30%.
+  //    Host-referred creator 80% + host 10% (+ platform 10%).
+  for (const [key, value] of [
+    ["creator_share_bps", "7000"],
+    ["referred_creator_share_bps", "8000"],
+    ["host_commission_bps", "1000"],
+  ] as const) {
+    await prisma.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
+  }
 
   const passwordHash = await bcrypt.hash(DEV_PASSWORD, 10);
   const now = new Date();

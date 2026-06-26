@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { ulid } from "ulid";
 import { prisma } from "@/lib/prisma";
-import { getCreatorShareBps } from "@/lib/settings";
+import { getSplitConfig, resolveSplit } from "@/lib/settings";
 import { maskObject } from "@/lib/log";
 import { getPaymentProvider } from "./index";
 import { recordPurchaseLedger, recordRefundReversal } from "./ledger";
@@ -113,7 +113,9 @@ async function dispatch(event: NormalizedPaymentEvent): Promise<Record<string, u
 export async function processPaid(
   event: NormalizedPaymentEvent,
 ): Promise<Record<string, unknown>> {
-  const creatorShareBps = await getCreatorShareBps();
+  // Read the split rates once (global), then resolve per-sale inside the tx
+  // based on whether the creator was referred by a host.
+  const splitConfig = await getSplitConfig();
 
   const outcome = await prisma.$transaction(async (tx) => {
     // a. PENDING -> PAID (conditional). 0 rows ⇒ already processed / not pending.
@@ -127,7 +129,7 @@ export async function processPaid(
 
     const order = await tx.order.findUnique({
       where: { id: event.orderId },
-      include: { content: true },
+      include: { content: { include: { creator: true } } },
     });
     if (!order || !order.content) throw new Error("order_not_found_after_promote");
 
@@ -159,12 +161,16 @@ export async function processPaid(
         WHERE id = ${order.dropId} AND remaining = 0 AND status = 'LIVE'`;
     }
 
-    // c. Double-entry ledger.
+    // c. Double-entry ledger (3-way when the creator has a referring host).
+    const hostId = order.content.creator.hostId;
+    const split = resolveSplit(splitConfig, !!hostId);
     await recordPurchaseLedger(tx, {
       orderId: order.id,
       amountKrw: order.amountKrw,
       creatorAccountId: order.content.creatorId,
-      creatorShareBps,
+      creatorShareBps: split.creatorBps,
+      hostAccountId: hostId,
+      hostShareBps: split.hostBps,
     });
 
     // d. Entitlement (the only basis for content access). watermarkId = ULID.

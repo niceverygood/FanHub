@@ -25,6 +25,7 @@ enum Role {
   FAN
   CREATOR
   ADMIN
+  HOST
 }
 
 enum UserStatus {
@@ -69,6 +70,7 @@ enum OrderStatus {
 enum AccountType {
   PLATFORM
   CREATOR
+  HOST
   FAN_WALLET
 }
 
@@ -104,6 +106,7 @@ model User {
   updatedAt     DateTime   @updatedAt
 
   creatorProfile CreatorProfile?
+  hostProfile    HostProfile?
   accounts       Account[]
   sessions       Session[]
   orders         Order[]
@@ -121,11 +124,32 @@ model CreatorProfile {
   bio              String?
   kycStatus        KycStatus @default(NONE)
   payoutAccountRef String?
+  // The host who referred this creator. When set, sales split 3 ways
+  // (creator / host / platform); when null, the default 2-way split applies.
+  hostId           String?
+  host             HostProfile? @relation(fields: [hostId], references: [id])
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   contents Content[]
   payouts  Payout[]
+
+  @@index([hostId])
+}
+
+// A host recruits creators and earns a commission on their referred sales.
+// Mirrors CreatorProfile: own login (User role HOST), ledger account, payouts.
+model HostProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handle      String   @unique
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  referredCreators CreatorProfile[]
+  payouts          Payout[]
 }
 
 // ── Catalog ────────────────────────────────────────────────────────────────────
@@ -228,16 +252,22 @@ model Entitlement {
   @@index([contentId])
 }
 
+// A payout settles an accrued balance to a creator OR a host. Exactly one of
+// creatorId / hostId is set (enforced in app logic). On PAID, a DEBIT is written
+// to the matching ledger account (CREATOR or HOST).
 model Payout {
-  id          String         @id @default(cuid())
-  creatorId   String
-  creator     CreatorProfile @relation(fields: [creatorId], references: [id])
+  id          String          @id @default(cuid())
+  creatorId   String?
+  creator     CreatorProfile? @relation(fields: [creatorId], references: [id])
+  hostId      String?
+  host        HostProfile?    @relation(fields: [hostId], references: [id])
   amountKrw   Int
-  status      PayoutStatus   @default(REQUESTED)
-  requestedAt DateTime       @default(now())
+  status      PayoutStatus    @default(REQUESTED)
+  requestedAt DateTime        @default(now())
   paidAt      DateTime?
 
   @@index([creatorId])
+  @@index([hostId])
   @@index([status])
 }
 

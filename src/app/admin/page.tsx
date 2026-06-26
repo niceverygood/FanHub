@@ -51,6 +51,7 @@ async function creatorSummaries(): Promise<CreatorSummary[]> {
   const pending = new Map<string, number>();
   const paid = new Map<string, number>();
   for (const r of payoutRows) {
+    if (!r.creatorId) continue; // host payouts are summarized separately
     const amt = r._sum.amountKrw ?? 0;
     if (r.status === "REQUESTED" || r.status === "APPROVED") pending.set(r.creatorId, (pending.get(r.creatorId) ?? 0) + amt);
     else if (r.status === "PAID") paid.set(r.creatorId, (paid.get(r.creatorId) ?? 0) + amt);
@@ -90,11 +91,11 @@ export default async function AdminPage() {
   const [kycQueue, reports, payouts, recentOrders, platformKrw, summaries, payoutHistory] = await Promise.all([
     prisma.creatorProfile.findMany({ where: { kycStatus: "PENDING" }, orderBy: { updatedAt: "asc" } }),
     prisma.report.findMany({ where: { status: "OPEN" }, include: { content: true }, orderBy: { createdAt: "asc" }, take: 20 }),
-    prisma.payout.findMany({ where: { status: { in: ["REQUESTED", "APPROVED"] } }, include: { creator: true }, orderBy: { requestedAt: "asc" }, take: 20 }),
+    prisma.payout.findMany({ where: { status: { in: ["REQUESTED", "APPROVED"] } }, include: { creator: true, host: true }, orderBy: { requestedAt: "asc" }, take: 20 }),
     prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 12, include: { content: true } }),
     platformBalance(),
     creatorSummaries(),
-    prisma.payout.findMany({ where: { status: { in: ["PAID", "REJECTED"] } }, include: { creator: true }, orderBy: [{ paidAt: "desc" }, { requestedAt: "desc" }], take: 10 }),
+    prisma.payout.findMany({ where: { status: { in: ["PAID", "REJECTED"] } }, include: { creator: true, host: true }, orderBy: [{ paidAt: "desc" }, { requestedAt: "desc" }], take: 10 }),
   ]);
 
   return (
@@ -188,7 +189,9 @@ export default async function AdminPage() {
             payouts.map((p) => (
               <div key={p.id} className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0">
                 <span className="text-sm text-text">
-                  {p.creator.displayName} <span className="numeric text-accent">{formatKrw(p.amountKrw)}</span>
+                  {(p.creator ?? p.host)?.displayName}
+                  {p.host ? <span className="ml-1 text-xs text-accent">호스트</span> : null}{" "}
+                  <span className="numeric text-accent">{formatKrw(p.amountKrw)}</span>
                   <span className="numeric ml-2 text-xs text-text-muted">{p.status}</span>
                 </span>
                 <span className="flex gap-2">
@@ -212,7 +215,7 @@ export default async function AdminPage() {
               <tbody>
                 {payoutHistory.map((p) => (
                   <tr key={p.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2 text-text">{p.creator.displayName} <span className="numeric text-xs text-text-muted">@{p.creator.handle}</span></td>
+                    <td className="px-4 py-2 text-text">{(p.creator ?? p.host)?.displayName} <span className="numeric text-xs text-text-muted">@{(p.creator ?? p.host)?.handle}{p.host ? " · 호스트" : ""}</span></td>
                     <td className="numeric px-4 py-2 text-right text-text">{formatKrw(p.amountKrw)}</td>
                     <td className="numeric px-4 py-2 text-right text-xs text-text-muted">{p.status}</td>
                     <td className="numeric px-4 py-2 text-right text-xs text-text-muted">{(p.paidAt ?? p.requestedAt).toISOString().slice(0, 10)}</td>

@@ -6,7 +6,7 @@ import { Home, Zap, BarChart3, Bookmark, Store, Shield, LogIn, type LucideIcon }
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
 
-type Role = "FAN" | "CREATOR" | "ADMIN";
+type Role = "FAN" | "CREATOR" | "ADMIN" | "HOST";
 
 export interface NavSession {
   loggedIn: boolean;
@@ -27,7 +27,7 @@ const BASE_ITEMS: Item[] = [
   { href: "/library", label: "보관함", icon: Bookmark },
 ];
 
-const ROLE_LABEL: Record<Role, string> = { FAN: "팬", CREATOR: "크리에이터", ADMIN: "관리자" };
+const ROLE_LABEL: Record<Role, string> = { FAN: "팬", CREATOR: "크리에이터", ADMIN: "관리자", HOST: "호스트" };
 
 export function Sidebar({ session }: { session: NavSession }) {
   const pathname = usePathname();

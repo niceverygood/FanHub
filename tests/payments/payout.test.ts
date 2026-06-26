@@ -44,7 +44,7 @@ describe("payout disbursement", () => {
     expect(rev0.paidOutKrw).toBe(0);
 
     const payAmount = Math.floor(rev0.availableKrw / 2);
-    const payout = await requestPayout(creatorId, payAmount);
+    const payout = await requestPayout({ type: "CREATOR", id: creatorId }, payAmount);
 
     // Pending payout is reserved (available drops), nothing on the ledger yet.
     const rev1 = await creatorRevenue(creatorId);
@@ -78,7 +78,7 @@ describe("payout disbursement", () => {
   it("double disbursement is a no-op (no second DEBIT)", async () => {
     const creatorId = await fundCreator(20000);
     const rev0 = await creatorRevenue(creatorId);
-    const payout = await requestPayout(creatorId, rev0.availableKrw);
+    const payout = await requestPayout({ type: "CREATOR", id: creatorId }, rev0.availableKrw);
 
     expect(await disbursePayout(payout.id)).toBe(true);
     expect(await disbursePayout(payout.id)).toBe(false); // already PAID
@@ -97,11 +97,11 @@ describe("payout disbursement", () => {
     const creatorId = await fundCreator(9000);
     const rev = await creatorRevenue(creatorId);
 
-    await expect(requestPayout(creatorId, rev.availableKrw + 1)).rejects.toThrow("insufficient_balance");
+    await expect(requestPayout({ type: "CREATOR", id: creatorId }, rev.availableKrw + 1)).rejects.toThrow("insufficient_balance");
 
     // After paying out the full balance, a further request is rejected.
-    const payout = await requestPayout(creatorId, rev.availableKrw);
+    const payout = await requestPayout({ type: "CREATOR", id: creatorId }, rev.availableKrw);
     await disbursePayout(payout.id);
-    await expect(requestPayout(creatorId, 1)).rejects.toThrow("insufficient_balance");
+    await expect(requestPayout({ type: "CREATOR", id: creatorId }, 1)).rejects.toThrow("insufficient_balance");
   });
 });
