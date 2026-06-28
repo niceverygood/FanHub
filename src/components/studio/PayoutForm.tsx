@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatKrw } from "@/lib/money";
 
 /** Requests a payout up to the available (ledger-derived) balance. */
-export function PayoutForm({ availableKrw }: { availableKrw: number }) {
+export function PayoutForm({ availableKrw, endpoint = "/api/studio/payouts" }: { availableKrw: number; endpoint?: string }) {
   const router = useRouter();
   const [amount, setAmount] = useState(Math.min(availableKrw, 10000));
   const [busy, setBusy] = useState(false);
@@ -16,7 +16,7 @@ export function PayoutForm({ availableKrw }: { availableKrw: number }) {
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch("/api/studio/payouts", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amountKrw: amount }),

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Zap, BarChart3, Bookmark, Store, Shield, LogIn, type LucideIcon } from "lucide-react";
+import { Home, Zap, BarChart3, Bookmark, Store, Shield, Users, LogIn, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
 
@@ -36,6 +36,9 @@ export function Sidebar({ session }: { session: NavSession }) {
   const items = [...BASE_ITEMS];
   if (session.role === "CREATOR" || session.role === "ADMIN") {
     items.push({ href: "/studio", label: "스튜디오", icon: Store });
+  }
+  if (session.role === "HOST" || session.role === "ADMIN") {
+    items.push({ href: "/host", label: "호스트", icon: Users });
   }
   if (session.role === "ADMIN") items.push({ href: "/admin", label: "어드민", icon: Shield });
 

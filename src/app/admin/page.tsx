@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatKrw } from "@/lib/money";
 import { ActionButton } from "@/components/ActionButton";
+import { HostCreateForm } from "@/components/admin/HostCreateForm";
+import { CreatorHostAssign } from "@/components/admin/CreatorHostAssign";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +99,20 @@ export default async function AdminPage() {
     creatorSummaries(),
     prisma.payout.findMany({ where: { status: { in: ["PAID", "REJECTED"] } }, include: { creator: true, host: true }, orderBy: [{ paidAt: "desc" }, { requestedAt: "desc" }], take: 10 }),
   ]);
+
+  const [hostList, allCreators, hostCreditRows] = await Promise.all([
+    prisma.hostProfile.findMany({
+      select: { id: true, handle: true, displayName: true, _count: { select: { referredCreators: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.creatorProfile.findMany({
+      select: { id: true, handle: true, displayName: true, hostId: true },
+      orderBy: { displayName: "asc" },
+    }),
+    prisma.ledgerEntry.groupBy({ by: ["accountId"], where: { accountType: "HOST", direction: "CREDIT" }, _sum: { amountKrw: true } }),
+  ]);
+  const hostCommission = new Map(hostCreditRows.map((r) => [r.accountId, r._sum.amountKrw ?? 0]));
+  const hostOptions = hostList.map((h) => ({ id: h.id, handle: h.handle, displayName: h.displayName }));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -224,6 +240,39 @@ export default async function AdminPage() {
               </tbody>
             </table>
           )}
+        </div>
+      </section>
+
+      {/* Hosts */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-text-muted">호스트</h2>
+        <HostCreateForm />
+        <div className="mt-3 rounded-card border border-border">
+          {hostList.length === 0 ? (
+            <p className="px-4 py-6 text-center text-xs text-text-muted">등록된 호스트가 없습니다.</p>
+          ) : (
+            hostList.map((h) => (
+              <div key={h.id} className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0">
+                <span className="text-sm text-text">{h.displayName} <span className="numeric text-xs text-text-muted">@{h.handle}</span></span>
+                <span className="numeric text-xs text-text-muted">
+                  {h._count.referredCreators}명 추천 · 누적 커미션 {formatKrw(hostCommission.get(h.id) ?? 0)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* Creator ↔ host linking */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-text-muted">크리에이터 ↔ 호스트 연결</h2>
+        <div className="rounded-card border border-border">
+          {allCreators.map((c) => (
+            <div key={c.id} className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0">
+              <span className="text-sm text-text">{c.displayName} <span className="numeric text-xs text-text-muted">@{c.handle}</span></span>
+              <CreatorHostAssign creatorId={c.id} hostId={c.hostId} hosts={hostOptions} />
+            </div>
+          ))}
         </div>
       </section>
 

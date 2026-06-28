@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import type { Role, CreatorProfile } from "@prisma/client";
+import type { Role, CreatorProfile, HostProfile } from "@prisma/client";
 
 /** Authorization failure mapped to an HTTP status by the route layer. */
 export class AuthzError extends Error {
@@ -40,5 +40,16 @@ export async function requireCreator(): Promise<{ user: SessionUser; profile: Cr
   }
   const profile = await prisma.creatorProfile.findUnique({ where: { userId: user.id } });
   if (!profile) throw new AuthzError(403, "no_creator_profile");
+  return { user, profile };
+}
+
+/** Requires the caller to own a host profile (HOST or ADMIN role). */
+export async function requireHost(): Promise<{ user: SessionUser; profile: HostProfile }> {
+  const user = await requireUser();
+  if (user.role !== "HOST" && user.role !== "ADMIN") {
+    throw new AuthzError(403, "forbidden");
+  }
+  const profile = await prisma.hostProfile.findUnique({ where: { userId: user.id } });
+  if (!profile) throw new AuthzError(403, "no_host_profile");
   return { user, profile };
 }
