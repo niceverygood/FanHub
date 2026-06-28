@@ -40,6 +40,10 @@ const envSchema = z.object({
   CCBILL_ACCOUNT_NUMBER: z.string().optional().default(""),
   CCBILL_SUBACCOUNT: z.string().optional().default(""),
   CCBILL_SALT: z.string().optional().default(""),
+  CCBILL_FLEXFORM_ID: z.string().optional().default(""),
+  // ISO-4217 numeric currency for CCBill billing. 410 = KRW, 840 = USD.
+  // Settlement currency / FX is a separate decision; default keeps prices in KRW.
+  CCBILL_CURRENCY_CODE: z.string().optional().default("410"),
 });
 
 const parsed = envSchema.safeParse(process.env);
