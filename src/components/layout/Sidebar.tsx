@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Zap, BarChart3, Bookmark, Store, Shield, Users, LogIn, type LucideIcon } from "lucide-react";
+import { Home, Zap, BarChart3, Bookmark, Store, Shield, Users, Bell, LogIn, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
 
@@ -12,6 +12,7 @@ export interface NavSession {
   loggedIn: boolean;
   role?: Role;
   label: string;
+  unread?: number;
 }
 
 type Item = {
@@ -34,6 +35,7 @@ export function Sidebar({ session }: { session: NavSession }) {
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   const items = [...BASE_ITEMS];
+  if (session.loggedIn) items.push({ href: "/notifications", label: "알림", icon: Bell });
   if (session.role === "CREATOR" || session.role === "ADMIN") {
     items.push({ href: "/studio", label: "스튜디오", icon: Store });
   }
@@ -62,6 +64,11 @@ export function Sidebar({ session }: { session: NavSession }) {
             >
               <Icon size={22} strokeWidth={active ? 2.4 : 2} className={active ? "text-accent" : ""} />
               <span>{it.label}</span>
+              {it.href === "/notifications" && session.unread ? (
+                <span className="numeric ml-auto min-w-[20px] rounded-full bg-accent px-1.5 py-0.5 text-center text-[11px] font-semibold text-bg">
+                  {session.unread > 99 ? "99+" : session.unread}
+                </span>
+              ) : null}
             </Link>
           );
         })}

@@ -5,8 +5,16 @@ import { requireAdmin } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { disbursePayout } from "@/lib/payouts";
+import { notify } from "@/lib/notifications";
+import { formatKrw } from "@/lib/money";
 
 export const runtime = "nodejs";
+
+const DECISION_MSG = {
+  APPROVED: "정산이 승인되었습니다",
+  PAID: "정산이 지급되었습니다",
+  REJECTED: "정산이 거절되었습니다",
+} as const;
 
 const schema = z.object({ decision: z.enum(["APPROVE", "PAY", "REJECT"]) });
 
@@ -45,6 +53,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     await prisma.auditLog.create({
       data: { actorId: admin.id, action: `payout_${next.toLowerCase()}`, targetType: "Payout", targetId: params.id, meta: {} },
     });
+
+    // Notify the payee (creator or host).
+    const payout = await prisma.payout.findUnique({
+      where: { id: params.id },
+      include: { creator: { select: { userId: true } }, host: { select: { userId: true } } },
+    });
+    const payeeUserId = payout?.creator?.userId ?? payout?.host?.userId;
+    if (payeeUserId) {
+      await notify({
+        userId: payeeUserId,
+        type: "payout",
+        title: DECISION_MSG[next],
+        body: payout ? formatKrw(payout.amountKrw) : undefined,
+        link: payout?.host ? "/host" : "/studio",
+      });
+    }
     return NextResponse.json({ ok: true, status: next });
   } catch (e) {
     return errorResponse(e);

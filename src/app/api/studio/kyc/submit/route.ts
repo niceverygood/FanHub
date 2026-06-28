@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isSameOrigin } from "@/lib/http";
 import { requireCreator } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
+import { notifyAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
     await prisma.auditLog.create({
       data: { actorId: user.id, action: "kyc_submitted", targetType: "CreatorProfile", targetId: profile.id, meta: {} },
     });
+    await notifyAdmins({ type: "admin_kyc_request", title: "새 KYC 신청", body: `@${profile.handle}`, link: "/admin" });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return errorResponse(e);

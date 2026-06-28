@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isSameOrigin } from "@/lib/http";
 import { requireUser } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
+import { notifyAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
     const report = await prisma.report.create({
       data: { contentId: body.data.contentId, reporterId: user.id, reason: body.data.reason },
     });
+    await notifyAdmins({ type: "admin_report", title: "새 콘텐츠 신고", body: content.title, link: "/admin" });
     return NextResponse.json({ id: report.id });
   } catch (e) {
     return errorResponse(e);

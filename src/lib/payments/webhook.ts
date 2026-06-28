@@ -2,10 +2,21 @@ import { Prisma } from "@prisma/client";
 import { ulid } from "ulid";
 import { prisma } from "@/lib/prisma";
 import { getSplitConfig, resolveSplit } from "@/lib/settings";
+import { notifyMany } from "@/lib/notifications";
+import { formatKrw } from "@/lib/money";
 import { maskObject } from "@/lib/log";
 import { getPaymentProvider } from "./index";
 import { recordPurchaseLedger, recordRefundReversal } from "./ledger";
 import type { NormalizedPaymentEvent } from "./provider";
+
+type SaleNote = {
+  title: string;
+  amountKrw: number;
+  contentId: string;
+  creatorUserId: string;
+  hostUserId: string | null;
+  hadHost: boolean;
+};
 
 function isUniqueViolation(e: unknown): boolean {
   return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
@@ -129,7 +140,7 @@ export async function processPaid(
 
     const order = await tx.order.findUnique({
       where: { id: event.orderId },
-      include: { content: { include: { creator: true } } },
+      include: { content: { include: { creator: { include: { host: true } } } } },
     });
     if (!order || !order.content) throw new Error("order_not_found_after_promote");
 
@@ -194,11 +205,32 @@ export async function processPaid(
       },
     });
 
-    return { outcome: "paid", orderId: order.id };
+    const sale: SaleNote = {
+      title: order.content.title,
+      amountKrw: order.amountKrw,
+      contentId: order.contentId,
+      creatorUserId: order.content.creator.userId,
+      hostUserId: order.content.creator.host?.userId ?? null,
+      hadHost: !!hostId,
+    };
+    return { outcome: "paid" as const, orderId: order.id, sale };
   });
 
   if (outcome.outcome === "sold_out") {
     await initiateExternalRefund(event.orderId, event.providerRef, "sold_out");
+  }
+
+  // Best-effort notifications (outside the money tx).
+  if (outcome.outcome === "paid" && "sale" in outcome && outcome.sale) {
+    const s = outcome.sale;
+    const link = `/content/${s.contentId}`;
+    const notes = [
+      { userId: s.creatorUserId, type: "sale", title: "새 판매", body: `${s.title} · ${formatKrw(s.amountKrw)}`, link },
+    ];
+    if (s.hadHost && s.hostUserId) {
+      notes.push({ userId: s.hostUserId, type: "host_commission", title: "추천 크리에이터 판매", body: `${s.title} · 커미션 적립`, link });
+    }
+    await notifyMany(notes);
   }
   return outcome;
 }

@@ -4,6 +4,8 @@ import { isSameOrigin } from "@/lib/http";
 import { requireCreator } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
 import { requestPayout } from "@/lib/payouts";
+import { notifyAdmins } from "@/lib/notifications";
+import { formatKrw } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -20,6 +22,12 @@ export async function POST(req: NextRequest) {
     const payout = await requestPayout({ type: "CREATOR", id: profile.id }, body.data.amountKrw);
     await prisma.auditLog.create({
       data: { actorId: user.id, action: "payout_requested", targetType: "Payout", targetId: payout.id, meta: { amountKrw: payout.amountKrw } },
+    });
+    await notifyAdmins({
+      type: "admin_payout_request",
+      title: "새 정산 요청",
+      body: `@${profile.handle} · ${formatKrw(payout.amountKrw)}`,
+      link: "/admin",
     });
     return NextResponse.json({ id: payout.id, amountKrw: payout.amountKrw, status: payout.status });
   } catch (e) {

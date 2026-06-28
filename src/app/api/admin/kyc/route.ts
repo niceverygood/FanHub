@@ -4,6 +4,7 @@ import { isSameOrigin } from "@/lib/http";
 import { requireAdmin } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { notify } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,21 @@ export async function POST(req: NextRequest) {
     await prisma.auditLog.create({
       data: { actorId: admin.id, action: `kyc_${next.toLowerCase()}`, targetType: "CreatorProfile", targetId: body.data.creatorId, meta: {} },
     });
+
+    // Notify the creator of the KYC decision.
+    const profile = await prisma.creatorProfile.findUnique({
+      where: { id: body.data.creatorId },
+      select: { userId: true },
+    });
+    if (profile) {
+      await notify({
+        userId: profile.userId,
+        type: "kyc",
+        title: next === "APPROVED" ? "KYC가 승인되었습니다" : "KYC가 거절되었습니다",
+        body: next === "APPROVED" ? "이제 콘텐츠 발행과 Drop 생성이 가능합니다." : "스튜디오에서 다시 제출할 수 있습니다.",
+        link: "/studio",
+      });
+    }
     return NextResponse.json({ ok: true, status: next });
   } catch (e) {
     return errorResponse(e);

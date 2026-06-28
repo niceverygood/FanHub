@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isSameOrigin } from "@/lib/http";
 import { requireAdmin } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
+import { notify } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -46,6 +47,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         },
       });
     });
+
+    // If the content was delisted, let its creator know.
+    if (body.data.delist) {
+      const content = await prisma.content.findUnique({
+        where: { id: report.contentId },
+        include: { creator: { select: { userId: true } } },
+      });
+      if (content) {
+        await notify({
+          userId: content.creator.userId,
+          type: "report",
+          title: "콘텐츠가 신고로 비공개 처리되었습니다",
+          body: content.title,
+          link: "/studio",
+        });
+      }
+    }
 
     return NextResponse.json({ ok: true, status: next });
   } catch (e) {

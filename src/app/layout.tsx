@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { unreadCount } from "@/lib/notifications";
 import Link from "next/link";
 import { Sidebar, type NavSession } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
@@ -28,14 +29,17 @@ export const metadata: Metadata = {
 async function navSession(): Promise<NavSession> {
   const session = await auth();
   if (!session?.user) return { loggedIn: false, label: "게스트" };
-  const profile = await prisma.creatorProfile.findUnique({
-    where: { userId: session.user.id },
-    select: { handle: true },
-  });
+  const [profile, unread] = await Promise.all([
+    prisma.creatorProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { handle: true },
+    }),
+    unreadCount(session.user.id),
+  ]);
   const label = profile?.handle
     ? `@${profile.handle}`
     : (session.user.email?.split("@")[0] ?? "내 계정");
-  return { loggedIn: true, role: session.user.role, label };
+  return { loggedIn: true, role: session.user.role, label, unread };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
