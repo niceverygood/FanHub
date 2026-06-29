@@ -56,7 +56,10 @@ export default async function StudioPage() {
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex items-baseline justify-between">
         <h1 className="font-display text-3xl font-semibold tracking-tight text-text">스튜디오</h1>
-        <span className="numeric text-sm text-text-muted">@{profile.handle}</span>
+        <span className="flex items-baseline gap-4">
+          <Link href="/studio/analytics" className="text-sm font-medium text-accent hover:underline">애널리틱스 →</Link>
+          <span className="numeric text-sm text-text-muted">@{profile.handle}</span>
+        </span>
       </div>
 
       {/* KYC banner */}
