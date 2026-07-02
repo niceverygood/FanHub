@@ -14,6 +14,10 @@ export interface FeedCardData {
   displayName: string;
   owned: boolean;
   drop?: { id: string; remaining: number; total: number; status: string } | null;
+  likeCount: number;
+  liked: boolean;
+  commentCount: number;
+  loggedIn: boolean;
 }
 
 export function FeedCard({ c }: { c: FeedCardData }) {
@@ -79,9 +83,13 @@ export function FeedCard({ c }: { c: FeedCardData }) {
 
       {/* Action row */}
       <div className="flex items-center gap-5 pt-3.5 text-text-muted">
-        <LikeButton seed={c.id} />
-        <Link href={`/content/${c.id}`} className="transition-colors hover:text-text">
+        <LikeButton contentId={c.id} initialCount={c.likeCount} initialLiked={c.liked} loggedIn={c.loggedIn} />
+        <Link
+          href={`/content/${c.id}#comments`}
+          className="flex items-center gap-1.5 text-sm transition-colors hover:text-text"
+        >
           <MessageCircle size={22} />
+          <span className="numeric">{c.commentCount.toLocaleString()}</span>
         </Link>
         <span className="transition-colors hover:text-accent">
           <Banknote size={22} />

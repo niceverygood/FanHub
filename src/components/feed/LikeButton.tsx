@@ -1,24 +1,55 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 
-/**
- * Cosmetic like control (no backend) — gives the feed an Instagram-like feel.
- * Seeded initial count so cards don't all show the same number.
- */
-export function LikeButton({ seed }: { seed: string }) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const base = (Math.abs(h) % 900) + 12;
+export interface LikeButtonProps {
+  contentId: string;
+  initialCount: number;
+  initialLiked: boolean;
+  loggedIn: boolean;
+}
 
-  const [liked, setLiked] = useState(false);
+/** Real like toggle backed by POST /api/content/[id]/like (optimistic UI). */
+export function LikeButton({ contentId, initialCount, initialLiked, loggedIn }: LikeButtonProps) {
+  const router = useRouter();
+  const [liked, setLiked] = useState(initialLiked);
+  const [count, setCount] = useState(initialCount);
+  const [pending, setPending] = useState(false);
+
+  const toggle = async () => {
+    if (!loggedIn) {
+      router.push("/login");
+      return;
+    }
+    if (pending) return;
+    setPending(true);
+    // Optimistic flip; the server response is authoritative.
+    const prev = { liked, count };
+    setLiked(!liked);
+    setCount(count + (liked ? -1 : 1));
+    try {
+      const res = await fetch(`/api/content/${contentId}/like`, { method: "POST" });
+      if (!res.ok) throw new Error("like_failed");
+      const data = (await res.json()) as { liked: boolean; count: number };
+      setLiked(data.liked);
+      setCount(data.count);
+    } catch {
+      setLiked(prev.liked);
+      setCount(prev.count);
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
     <button
-      onClick={() => setLiked((v) => !v)}
+      type="button"
+      onClick={toggle}
       className="flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
       aria-pressed={liked}
+      aria-label="좋아요"
     >
       <Heart
         size={22}
@@ -26,7 +57,7 @@ export function LikeButton({ seed }: { seed: string }) {
         fill={liked ? "currentColor" : "none"}
         strokeWidth={2}
       />
-      <span className="numeric">{(base + (liked ? 1 : 0)).toLocaleString()}</span>
+      <span className="numeric">{count.toLocaleString()}</span>
     </button>
   );
 }

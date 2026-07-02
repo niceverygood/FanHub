@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { getFeedContents } from "@/lib/feed";
+import { socialStatsFor } from "@/lib/social";
 import { getRecentTrades } from "@/lib/ticker";
 import { Ticker } from "@/components/Ticker";
 import { FeedCard } from "@/components/feed/FeedCard";
@@ -27,6 +28,10 @@ export default async function HomePage() {
   const [contents, trades, ents] = await Promise.all([contentsP, tradesP, entsP]);
 
   const owned = new Set(ents.map((e) => e.contentId));
+  const social = await socialStatsFor(
+    contents.map((c) => c.id),
+    session?.user?.id,
+  );
 
   return (
     <div>
@@ -90,6 +95,10 @@ export default async function HomePage() {
                     displayName: c.displayName,
                     owned: owned.has(c.id),
                     drop: c.drop,
+                    likeCount: social.likeCounts.get(c.id) ?? 0,
+                    liked: social.likedByMe.has(c.id),
+                    commentCount: social.commentCounts.get(c.id) ?? 0,
+                    loggedIn: Boolean(session?.user),
                   }}
                 />
               ))}

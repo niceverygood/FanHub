@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loginWithPassword, loginWithEmail } from "./actions";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
@@ -61,6 +62,13 @@ export default function LoginPage({ searchParams }: { searchParams: SearchParams
           매직 링크 전송
         </button>
       </form>
+
+      <p className="mt-6 text-center text-sm text-text-muted">
+        아직 계정이 없나요?{" "}
+        <Link href="/signup" className="text-accent hover:underline">
+          회원가입
+        </Link>
+      </p>
     </div>
   );
 }

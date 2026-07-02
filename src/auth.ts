@@ -94,18 +94,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session: async ({ session, user }) => {
-      // Database strategy: `user` is the adapter user row.
-      if (session.user) {
-        session.user.id = user.id;
-        // role is added by the type augmentation; read it off the adapter user
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { role: true, ageVerifiedAt: true, status: true },
-        });
-        session.user.role = dbUser?.role ?? "FAN";
-        session.user.ageVerified = Boolean(dbUser?.ageVerifiedAt);
-      }
-      return session;
+      // Database strategy: `user` is the adapter user row. Return a NEW object
+      // with only public fields — returning the passed-in `session` object
+      // exposes the raw adapter row (sessionToken, user.passwordHash) through
+      // GET /api/auth/session.
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { role: true, ageVerifiedAt: true, name: true },
+      });
+      return {
+        expires: session.expires,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: dbUser?.name ?? null,
+          role: dbUser?.role ?? "FAN",
+          ageVerified: Boolean(dbUser?.ageVerifiedAt),
+        },
+      };
     },
   },
   jwt: {

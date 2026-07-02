@@ -10,6 +10,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { BuyButton } from "@/components/BuyButton";
 import { ContentViewer } from "@/components/ContentViewer";
 import { ReportButton } from "@/components/ReportButton";
+import { LikeButton } from "@/components/feed/LikeButton";
+import { CommentSection } from "@/components/comments/CommentSection";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,18 @@ export default async function ContentPage({ params }: { params: { id: string } }
   const session = await auth();
   const entitlement = session?.user ? await entitlementFor(session.user.id, content.id) : null;
   const owned = Boolean(entitlement);
+
+  const [likeCount, myLike] = await Promise.all([
+    prisma.like.count({ where: { contentId: content.id } }),
+    session?.user
+      ? prisma.like.findUnique({
+          where: { userId_contentId: { userId: session.user.id, contentId: content.id } },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
+  ]);
+  const viewerModerates =
+    session?.user?.role === "ADMIN" || session?.user?.id === content.creator.userId;
 
   const drop = content.drop;
   const soldOut = drop ? drop.status === "SOLD_OUT" || drop.remaining <= 0 : false;
@@ -67,8 +81,18 @@ export default async function ContentPage({ params }: { params: { id: string } }
         </div>
       )}
 
+      {/* Like row */}
+      <div className="flex items-center gap-5 pt-3.5 text-text-muted">
+        <LikeButton
+          contentId={content.id}
+          initialCount={likeCount}
+          initialLiked={Boolean(myLike)}
+          loggedIn={Boolean(session?.user)}
+        />
+      </div>
+
       {/* Title + price + action */}
-      <div className="mt-5">
+      <div className="mt-4">
         <h1 className="font-display text-xl font-semibold tracking-tight text-text">{content.title}</h1>
         <p className="numeric mt-1 text-2xl text-accent">{formatKrw(content.priceKrw)}</p>
 
@@ -92,6 +116,12 @@ export default async function ContentPage({ params }: { params: { id: string } }
           <ReportButton contentId={content.id} />
         </div>
       </div>
+
+      <CommentSection
+        contentId={content.id}
+        viewerId={session?.user?.id}
+        viewerModerates={viewerModerates}
+      />
     </div>
   );
 }

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Zap, BarChart3, Bookmark, User } from "lucide-react";
+import { Home, Search, Zap, BarChart3, Bookmark, User } from "lucide-react";
 import type { NavSession } from "./Sidebar";
 
 const ITEMS = [
   { href: "/", label: "홈", icon: Home },
+  { href: "/search", label: "검색", icon: Search },
   { href: "/drops", label: "Drops", icon: Zap },
   { href: "/chart", label: "차트", icon: BarChart3 },
   { href: "/library", label: "보관함", icon: Bookmark },

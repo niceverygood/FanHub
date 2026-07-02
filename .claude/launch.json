@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev-local-db",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "set -a; . ./.env.docker.bak; set +a; exec pnpm dev -p 3005"],
+      "port": 3005
+    }
+  ]
+}

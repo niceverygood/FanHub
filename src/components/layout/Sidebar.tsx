@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Zap, BarChart3, Bookmark, Store, Shield, Users, Bell, LogIn, type LucideIcon } from "lucide-react";
+import { Home, Search, Zap, BarChart3, Bookmark, Store, Shield, Users, Bell, LogIn, Settings, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
 
@@ -23,6 +23,7 @@ type Item = {
 
 const BASE_ITEMS: Item[] = [
   { href: "/", label: "홈", icon: Home },
+  { href: "/search", label: "검색", icon: Search },
   { href: "/drops", label: "Drops", icon: Zap },
   { href: "/chart", label: "차트", icon: BarChart3 },
   { href: "/library", label: "보관함", icon: Bookmark },
@@ -35,7 +36,10 @@ export function Sidebar({ session }: { session: NavSession }) {
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   const items = [...BASE_ITEMS];
-  if (session.loggedIn) items.push({ href: "/notifications", label: "알림", icon: Bell });
+  if (session.loggedIn) {
+    items.push({ href: "/notifications", label: "알림", icon: Bell });
+    items.push({ href: "/settings", label: "설정", icon: Settings });
+  }
   if (session.role === "CREATOR" || session.role === "ADMIN") {
     items.push({ href: "/studio", label: "스튜디오", icon: Store });
   }
