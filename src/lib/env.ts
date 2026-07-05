@@ -34,7 +34,7 @@ const envSchema = z.object({
     .default("true")
     .transform((v) => v === "true"),
 
-  PAYMENT_PROVIDER: z.enum(["mock", "ccbill"]).default("mock"),
+  PAYMENT_PROVIDER: z.enum(["mock", "ccbill", "paypal"]).default("mock"),
   PAYMENT_WEBHOOK_SECRET: z.string().min(8),
 
   CCBILL_ACCOUNT_NUMBER: z.string().optional().default(""),
@@ -44,6 +44,16 @@ const envSchema = z.object({
   // ISO-4217 numeric currency for CCBill billing. 410 = KRW, 840 = USD.
   // Settlement currency / FX is a separate decision; default keeps prices in KRW.
   CCBILL_CURRENCY_CODE: z.string().optional().default("410"),
+
+  // PayPal (non-adult content only — PayPal AUP bans adult). Keys via env.
+  PAYPAL_ENV: z.enum(["sandbox", "live"]).default("sandbox"),
+  PAYPAL_CLIENT_ID: z.string().optional().default(""),
+  PAYPAL_SECRET: z.string().optional().default(""),
+  PAYPAL_WEBHOOK_ID: z.string().optional().default(""),
+  // ISO-4217 alpha currency for PayPal. KRW has no decimal digits.
+  PAYPAL_CURRENCY: z.string().optional().default("KRW"),
+  // When "true" AND provider=paypal, admin "Pay" auto-sends via PayPal Payouts.
+  PAYOUTS_AUTO: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
 });
 
 const parsed = envSchema.safeParse(process.env);

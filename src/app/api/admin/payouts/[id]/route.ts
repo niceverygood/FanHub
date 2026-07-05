@@ -4,7 +4,7 @@ import { isSameOrigin } from "@/lib/http";
 import { requireAdmin } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { disbursePayout } from "@/lib/payouts";
+import { disbursePayout, autoSendPayout } from "@/lib/payouts";
 import { notify } from "@/lib/notifications";
 import { formatKrw } from "@/lib/money";
 
@@ -36,10 +36,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const next = NEXT_STATUS[body.data.decision];
 
+    let autoPayout: { sent: boolean; detail: string } | null = null;
     if (body.data.decision === "PAY") {
       // Transition + ledger DEBIT atomically (double-payment safe). See disbursePayout.
       const ok = await disbursePayout(params.id);
       if (!ok) return NextResponse.json({ error: "invalid_transition" }, { status: 409 });
+      // Auto-settlement (PayPal Payouts) when enabled — best-effort, idempotent.
+      autoPayout = await autoSendPayout(params.id);
+      await prisma.auditLog.create({
+        data: {
+          actorId: admin.id,
+          action: autoPayout.sent ? "payout_sent" : "payout_send_skipped",
+          targetType: "Payout",
+          targetId: params.id,
+          meta: { detail: autoPayout.detail },
+        },
+      });
     } else {
       const updated = await prisma.payout.updateMany({
         where: { id: params.id, status: { in: [...FROM_STATUS[body.data.decision]] } },
@@ -69,7 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         link: payout?.host ? "/host" : "/studio",
       });
     }
-    return NextResponse.json({ ok: true, status: next });
+    return NextResponse.json({ ok: true, status: next, autoPayout });
   } catch (e) {
     return errorResponse(e);
   }

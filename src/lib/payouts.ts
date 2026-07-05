@@ -1,7 +1,9 @@
 import { AccountType, type Payout } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { env } from "@/lib/env";
 import { availableBalance } from "@/lib/studio/revenue";
 import { recordPayoutDisbursement } from "@/lib/payments/ledger";
+import { sendPayout } from "@/lib/payments/paypal";
 
 export class PayoutError extends Error {
   constructor(public readonly code: string) {
@@ -67,4 +69,28 @@ export async function disbursePayout(payoutId: string): Promise<boolean> {
     });
     return true;
   });
+}
+
+/**
+ * Auto-settlement: when PAYOUTS_AUTO + provider=paypal, sends the disbursed
+ * amount to the payee's PayPal email via Payouts. Idempotent — senderBatchId =
+ * payoutId, so PayPal rejects a duplicate send. Best-effort and OUTSIDE the
+ * ledger tx: the ledger (via disbursePayout) is authoritative; a failed send is
+ * reported for admin retry (calling again is safe). Returns a status.
+ */
+export async function autoSendPayout(payoutId: string): Promise<{ sent: boolean; detail: string }> {
+  if (!(env.PAYOUTS_AUTO && env.PAYMENT_PROVIDER === "paypal")) return { sent: false, detail: "auto_disabled" };
+  const payout = await prisma.payout.findUnique({
+    where: { id: payoutId },
+    include: { creator: { select: { payoutAccountRef: true } }, host: { select: { payoutAccountRef: true } } },
+  });
+  if (!payout || payout.status !== "PAID") return { sent: false, detail: "not_paid" };
+  const email = payout.creator?.payoutAccountRef ?? payout.host?.payoutAccountRef ?? "";
+  if (!email) return { sent: false, detail: "no_payout_account" };
+  try {
+    const r = await sendPayout({ email, amountKrw: payout.amountKrw, senderBatchId: payout.id, note: "FanHub 정산" });
+    return { sent: true, detail: `${r.batchId} ${r.status}`.trim() };
+  } catch (e) {
+    return { sent: false, detail: `error:${(e as Error).message.slice(0, 140)}` };
+  }
 }

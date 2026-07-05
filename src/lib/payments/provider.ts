@@ -37,8 +37,9 @@ export interface PaymentProvider {
 
   createCheckout(params: CreateCheckoutParams): Promise<CreateCheckoutResult>;
 
-  /** Verify the raw request body's signature. MUST run before parsing. */
-  verifyWebhookSignature(rawBody: Buffer, headers: Record<string, string>): boolean;
+  /** Verify the raw request body's signature. MUST run before parsing.
+   *  May be async (e.g. PayPal verifies via an API call). */
+  verifyWebhookSignature(rawBody: Buffer, headers: Record<string, string>): boolean | Promise<boolean>;
 
   /** Parse a verified raw body into a normalized event. Throws on malformed input. */
   parseWebhookEvent(rawBody: Buffer): NormalizedPaymentEvent;

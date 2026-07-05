@@ -40,7 +40,7 @@ export async function verifyAndProcess(
 ): Promise<ProcessResult> {
   const provider = getPaymentProvider();
 
-  if (!provider.verifyWebhookSignature(rawBody, headers)) {
+  if (!(await provider.verifyWebhookSignature(rawBody, headers))) {
     // 401 and NOTHING else happens — no DB read/write.
     return { status: 401, body: { error: "invalid_signature" } };
   }
