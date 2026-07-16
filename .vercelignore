@@ -7,3 +7,9 @@ node_modules
 *.log
 .git
 /.data
+deck
+docs
+marketing
+scripts
+.env.docker.bak
+tsconfig.tsbuildinfo

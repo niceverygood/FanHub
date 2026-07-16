@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { isSameOrigin } from "@/lib/http";
+import { clientIp, isSameOrigin } from "@/lib/http";
 import { requireUser } from "@/lib/authz";
 import { errorResponse } from "@/lib/api";
 import { notifyAdmins } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,11 @@ export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) return NextResponse.json({ error: "bad_origin" }, { status: 403 });
   try {
     const user = await requireUser();
+    if (!user.ageVerified) return NextResponse.json({ error: "age_verification_required" }, { status: 403 });
+
+    const rl = await rateLimit(`report:${user.id}:${clientIp(req)}`, 10, 60);
+    if (!rl.ok) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+
     const body = schema.safeParse(await req.json());
     if (!body.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
 

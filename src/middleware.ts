@@ -12,6 +12,13 @@ const EXEMPT_PREFIXES = [
   "/age-gate",
   "/api/", // auth callbacks, payment webhooks, age-gate submit
   "/preview/", // public blurred preview assets (Phase 3)
+  "/terms",
+  "/privacy",
+  "/content-policy",
+  "/dmca",
+  "/safety",
+  "/billing",
+  "/compliance",
 ];
 
 export function middleware(req: NextRequest) {
