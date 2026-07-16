@@ -90,7 +90,17 @@ export default async function AdminPage() {
     );
   }
 
-  const [kycQueue, reports, payouts, recentOrders, platformKrw, summaries, payoutHistory] = await Promise.all([
+  const [
+    kycQueue,
+    reports,
+    payouts,
+    recentOrders,
+    platformKrw,
+    summaries,
+    payoutHistory,
+    auditLogs,
+    webhookIssues,
+  ] = await Promise.all([
     prisma.creatorProfile.findMany({ where: { kycStatus: "PENDING" }, orderBy: { updatedAt: "asc" } }),
     prisma.report.findMany({ where: { status: "OPEN" }, include: { content: true }, orderBy: { createdAt: "asc" }, take: 20 }),
     prisma.payout.findMany({ where: { status: { in: ["REQUESTED", "APPROVED"] } }, include: { creator: true, host: true }, orderBy: { requestedAt: "asc" }, take: 20 }),
@@ -98,6 +108,12 @@ export default async function AdminPage() {
     platformBalance(),
     creatorSummaries(),
     prisma.payout.findMany({ where: { status: { in: ["PAID", "REJECTED"] } }, include: { creator: true, host: true }, orderBy: [{ paidAt: "desc" }, { requestedAt: "desc" }], take: 10 }),
+    prisma.auditLog.findMany({ orderBy: { at: "desc" }, take: 12 }),
+    prisma.webhookEvent.findMany({
+      where: { status: { in: ["FAILED", "RECEIVED"] } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
   ]);
 
   const [hostList, allCreators, hostCreditRows] = await Promise.all([
@@ -291,6 +307,52 @@ export default async function AdminPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* Webhook processing */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-text-muted">웹훅 처리 상태</h2>
+        <div className="overflow-hidden rounded-card border border-border">
+          {webhookIssues.length === 0 ? (
+            <p className="px-4 py-6 text-center text-xs text-text-muted">실패 또는 미처리 웹훅이 없습니다.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <tbody>
+                {webhookIssues.map((w) => (
+                  <tr key={w.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2 text-text">{w.provider}</td>
+                    <td className="numeric px-4 py-2 text-xs text-text-muted">{w.eventId.slice(0, 36)}</td>
+                    <td className="numeric px-4 py-2 text-right text-xs text-text-muted">{w.status}</td>
+                    <td className="numeric px-4 py-2 text-right text-xs text-text-muted">{w.createdAt.toISOString().slice(0, 16)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      {/* Audit log */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-text-muted">최근 감사 로그</h2>
+        <div className="overflow-hidden rounded-card border border-border">
+          {auditLogs.length === 0 ? (
+            <p className="px-4 py-6 text-center text-xs text-text-muted">감사 로그가 없습니다.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <tbody>
+                {auditLogs.map((a) => (
+                  <tr key={a.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2 text-text">{a.action}</td>
+                    <td className="numeric px-4 py-2 text-xs text-text-muted">{a.targetType}</td>
+                    <td className="numeric px-4 py-2 text-xs text-text-muted">{a.targetId.slice(0, 18)}</td>
+                    <td className="numeric px-4 py-2 text-right text-xs text-text-muted">{a.at.toISOString().slice(0, 16)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </div>
