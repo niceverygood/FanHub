@@ -13,6 +13,12 @@ const schema = z.object({
   priceKrw: z.number().int().nonnegative(),
   previewAssetKey: z.string().min(1).optional(),
   assetKeys: z.array(z.string().min(1)).default([]),
+  attestation: z.object({
+    allParticipantsAdults: z.literal(true),
+    consentToDistribute: z.literal(true),
+    rightsOwned: z.literal(true),
+    noProhibitedContent: z.literal(true),
+  }),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,7 +40,16 @@ export async function POST(req: NextRequest) {
       },
     });
     await prisma.auditLog.create({
-      data: { actorId: user.id, action: "content_created", targetType: "Content", targetId: content.id, meta: {} },
+      data: {
+        actorId: user.id,
+        action: "content_created",
+        targetType: "Content",
+        targetId: content.id,
+        meta: {
+          attestation: body.data.attestation,
+          policyVersion: "2026-07-16",
+        },
+      },
     });
     return NextResponse.json({ id: content.id });
   } catch (e) {

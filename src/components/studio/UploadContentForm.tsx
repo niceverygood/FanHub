@@ -13,8 +13,18 @@ export function UploadContentForm() {
   const [priceKrw, setPriceKrw] = useState(10000);
   const [preview, setPreview] = useState<File | null>(null);
   const [originals, setOriginals] = useState<File[]>([]);
+  const [attestation, setAttestation] = useState({
+    allParticipantsAdults: false,
+    consentToDistribute: false,
+    rightsOwned: false,
+    noProhibitedContent: false,
+  });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  function setAttested(key: keyof typeof attestation, value: boolean) {
+    setAttestation((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function uploadFile(file: File, kind: "preview" | "original"): Promise<string> {
     const res = await fetch("/api/studio/uploads", {
@@ -44,7 +54,7 @@ export function UploadContentForm() {
       const res = await fetch("/api/studio/contents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, type, priceKrw, previewAssetKey: previewKey, assetKeys }),
+        body: JSON.stringify({ title, type, priceKrw, previewAssetKey: previewKey, assetKeys, attestation }),
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -54,6 +64,12 @@ export function UploadContentForm() {
       setTitle("");
       setPreview(null);
       setOriginals([]);
+      setAttestation({
+        allParticipantsAdults: false,
+        consentToDistribute: false,
+        rightsOwned: false,
+        noProhibitedContent: false,
+      });
       router.refresh();
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "failed");
@@ -96,6 +112,44 @@ export function UploadContentForm() {
           onChange={(e) => setOriginals(Array.from(e.target.files ?? []))}
         />
       </label>
+      <div className="space-y-2 rounded-md border border-border bg-bg p-3 text-xs text-text-muted">
+        <label className="flex gap-2">
+          <input
+            type="checkbox"
+            checked={attestation.allParticipantsAdults}
+            onChange={(e) => setAttested("allParticipantsAdults", e.target.checked)}
+            required
+          />
+          모든 등장 인물은 성인이며 연령을 확인했습니다.
+        </label>
+        <label className="flex gap-2">
+          <input
+            type="checkbox"
+            checked={attestation.consentToDistribute}
+            onChange={(e) => setAttested("consentToDistribute", e.target.checked)}
+            required
+          />
+          촬영, 업로드, 판매 및 배포에 대한 명시적 동의를 확보했습니다.
+        </label>
+        <label className="flex gap-2">
+          <input
+            type="checkbox"
+            checked={attestation.rightsOwned}
+            onChange={(e) => setAttested("rightsOwned", e.target.checked)}
+            required
+          />
+          콘텐츠와 미리보기 자산의 권리를 보유하거나 적법하게 사용할 권한이 있습니다.
+        </label>
+        <label className="flex gap-2">
+          <input
+            type="checkbox"
+            checked={attestation.noProhibitedContent}
+            onChange={(e) => setAttested("noProhibitedContent", e.target.checked)}
+            required
+          />
+          콘텐츠 정책의 금지 콘텐츠에 해당하지 않습니다.
+        </label>
+      </div>
       <button
         type="submit"
         disabled={busy}
